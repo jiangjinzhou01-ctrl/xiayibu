@@ -47,6 +47,18 @@
   }
   let busy = false;
   let context = {};
+  let dockObserver;
+  function updateMobileViewport(){
+    const page=document.querySelector('.companion-page');if(!page)return;
+    const viewport=window.visualViewport;
+    const height=viewport?.height||window.innerHeight;
+    const bottom=Math.max(0,window.innerHeight-height-(viewport?.offsetTop||0));
+    page.style.setProperty('--visual-height',`${height}px`);
+    page.style.setProperty('--visual-bottom',`${bottom}px`);
+  }
+  window.visualViewport?.addEventListener('resize',updateMobileViewport);
+  window.visualViewport?.addEventListener('scroll',updateMobileViewport);
+  window.addEventListener('resize',updateMobileViewport);
   const starters = [
     ['direction','我还不知道自己适合什么工作','找方向'],
     ['resume','帮我看看简历怎么改','改简历'],
@@ -115,11 +127,11 @@
   function setMode(value) { mode=value;provider.mode=value;localStorage.setItem(PROVIDER_KEY,JSON.stringify(provider));const label=$('#agent-mode-label');if(label)label.textContent=modeLabel();const privacy=$('#chat-privacy');if(privacy)privacy.textContent=currentPrivacy();document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===mode));document.querySelectorAll('[data-mode-panel]').forEach(p=>p.hidden=p.dataset.modePanel!==mode); }
   function view(data) { if(data)context=data;memory=(localStorage.getItem(MEMORY_KEY)||'').slice(0,2000);return `<div class="companion-page">
     <div class="companion-layout"><section class="chat-card" aria-label="求职伙伴对话">
-      <header class="chat-head"><div class="chat-identity"><span class="buddy-mini"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg#sparkle"></use></svg></span><div><strong>下一步 · 伙伴</strong><small id="agent-mode-label">${modeLabel()}</small></div></div><div class="chat-head-actions"><button type="button" class="chat-head-button actions-trigger" data-panel-open="actions" aria-controls="companion-tools" aria-expanded="false" aria-label="打开行动面板"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg#compass"></use></svg><span>行动</span></button><button type="button" class="chat-head-button" data-panel-open="memory" aria-controls="memory-panel" aria-expanded="false" aria-label="打开伙伴记忆"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg?v=20260925i#bookmark"></use></svg><span>记忆</span></button><button type="button" class="chat-head-button" data-panel-open="settings" aria-controls="settings-panel" aria-expanded="false" aria-label="打开模型设置"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg?v=20260925i#settings"></use></svg><span>设置</span></button></div></header>
+      <header class="chat-head"><div class="chat-identity"><span class="buddy-mini"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg#sparkle"></use></svg></span><div><strong>职向 · 伙伴</strong><small id="agent-mode-label">${modeLabel()}</small></div></div><div class="chat-head-actions"><button type="button" class="chat-head-button chat-focus-trigger" data-chat-focus aria-label="在顶部开始提问"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14M7 13.5l8-8 3.5 3.5-8 8H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>提问</span></button><button type="button" class="chat-head-button actions-trigger" data-panel-open="actions" aria-controls="companion-tools" aria-expanded="false" aria-label="打开行动面板"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg#compass"></use></svg><span>行动</span></button><button type="button" class="chat-head-button" data-panel-open="memory" aria-controls="memory-panel" aria-expanded="false" aria-label="打开伙伴记忆"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg?v=20260925j#bookmark"></use></svg><span>记忆</span></button><button type="button" class="chat-head-button" data-panel-open="settings" aria-controls="settings-panel" aria-expanded="false" aria-label="打开模型设置"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg?v=20260925j#settings"></use></svg><span>设置</span></button></div></header>
       <div class="chat-goal"><span class="goal-pip" aria-hidden="true"></span><span>${context.profile?.target?`正在探索：${escape(context.profile.target.slice(0,35))}`:'从一个小问题开始，慢慢找到方向'}</span><a href="#direction">${context.profile?.target?'调整方向':'填写方向'} ↗</a></div>
       <div class="chat-thread" id="chat-thread" role="log" aria-live="polite"></div>
-      <div class="chat-dock"><div class="chat-starters" aria-label="对话建议">${starters.map(x=>`<button type="button" data-starter="${x[0]}">${x[2]}</button>`).join('')}</div><form id="chat-form" class="chat-compose"><label class="sr-only" for="chat-input">对伙伴说</label><textarea id="chat-input" maxlength="3000" rows="2" placeholder="说说你现在遇到的问题…" required></textarea><button type="submit" aria-label="发送消息" class="chat-send"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-5 16-3.5-7zM11.5 13 20 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg></button></form><p class="chat-privacy" id="chat-privacy">${currentPrivacy()}</p></div>
-    </section><aside class="companion-tools" id="companion-tools" aria-label="求职行动" tabindex="-1"><div class="tools-mobile-head"><strong>我的行动</strong><button type="button" data-panel-close class="panel-close" aria-label="关闭行动面板">×</button></div><section class="tool-card journey-card"><div class="tool-kicker">TODAY / NEXT STEP</div><h2>把想法变成下一步</h2><p>${context.profile?.target?`当前方向：${escape(context.profile.target.slice(0,55))}`:'先找一个感兴趣的岗位，或者写下一段真实经历。'}</p><div class="journey-links"><a href="#direction"><span>01</span><strong>梳理方向</strong><span aria-hidden="true">↗</span></a><a href="#resume"><span>02</span><strong>整理简历</strong><span aria-hidden="true">↗</span></a><a href="#tracker"><span>03</span><strong>跟进投递</strong><span aria-hidden="true">↗</span></a></div></section>
+    <div class="chat-dock" aria-label="伙伴聊天输入区"><div class="chat-starters" aria-label="对话建议">${starters.map(x=>`<button type="button" data-starter="${x[0]}">${x[2]}</button>`).join('')}</div><form id="chat-form" class="chat-compose"><label class="sr-only" for="chat-input">对伙伴说</label><textarea id="chat-input" maxlength="3000" rows="2" placeholder="说说你现在遇到的问题…" required></textarea><button type="submit" aria-label="发送消息" class="chat-send"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-5 16-3.5-7zM11.5 13 20 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg></button></form><p class="chat-privacy" id="chat-privacy">${currentPrivacy()}</p></div>
+    </section><aside class="companion-tools" id="companion-tools" aria-label="求职行动" tabindex="-1"><div class="tools-mobile-head"><strong>我的行动</strong><button type="button" data-panel-close class="panel-close" aria-label="关闭行动面板">×</button></div><section class="tool-card journey-card"><div class="tool-kicker">TODAY / CAREER PATH</div><h2>把想法变成下一步</h2><p>${context.profile?.target?`当前方向：${escape(context.profile.target.slice(0,55))}`:'先找一个感兴趣的岗位，或者写下一段真实经历。'}</p><div class="journey-links"><a href="#direction"><span>01</span><strong>梳理方向</strong><span aria-hidden="true">↗</span></a><a href="#resume"><span>02</span><strong>整理简历</strong><span aria-hidden="true">↗</span></a><a href="#tracker"><span>03</span><strong>跟进投递</strong><span aria-hidden="true">↗</span></a></div></section>
     <section class="tool-card search-tool"><div class="tool-kicker">JOB SEARCH</div><h2>从真实岗位出发</h2><p>先确定岗位和城市，再到招聘原站核实信息。</p><form id="platform-search"><label class="field">目标岗位<input name="role" maxlength="60" placeholder="例如：产品运营" value="${escape(context.profile?.target||'')}"></label><label class="field">城市<input name="city" maxlength="40" placeholder="例如：成都 / 全国" value="${escape(context.profile?.city||'')}"></label><button class="btn btn-dark" type="submit">生成搜索清单 ↗</button></form><div id="search-results"></div></section></aside></div>
     <div class="companion-shade" id="companion-shade" hidden></div>
     <section class="companion-panel" id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1" hidden><header class="panel-headline"><div><span class="tool-kicker">YOUR AI</span><h2 id="settings-title">选择你的伙伴</h2></div><button type="button" data-panel-close class="panel-close" aria-label="关闭模型设置">×</button></header><div class="panel-scroll"><p class="panel-intro">默认使用免费的本地引导。也可以连接自己的模型 API；密钥仅留在当前页面会话。</p><button type="button" class="chat-text-button" id="chat-clear">清空对话记录</button>
@@ -231,6 +243,12 @@
   }
   function mount(root, data) {
     context=data||{}; renderMessages();
+    dockObserver?.disconnect();
+    const page=root.querySelector('.companion-page');
+    const dock=root.querySelector('.chat-dock');
+    const measureDock=()=>page?.style.setProperty('--chat-dock-height',`${Math.ceil(dock.getBoundingClientRect().height)}px`);
+    if(window.ResizeObserver){dockObserver=new ResizeObserver(measureDock);dockObserver.observe(dock)}
+    updateMobileViewport();measureDock();
     let returnFocus=null;
     const shade=root.querySelector('#companion-shade');
     const actions=root.querySelector('#companion-tools');
@@ -266,6 +284,9 @@
       else if(!e.shiftKey&&(document.activeElement===last||document.activeElement===activePanel)){e.preventDefault();first.focus()}
     });
     root.querySelector('#chat-form')?.addEventListener('submit',e=>{e.preventDefault();const input=$('#chat-input');const text=input.value.trim();if(!text||busy)return;input.value='';send(text)});
+    root.querySelector('[data-chat-focus]')?.addEventListener('click',()=>root.querySelector('#chat-input')?.focus({preventScroll:true}));
+    root.querySelector('#chat-input')?.addEventListener('focus',()=>requestAnimationFrame(updateMobileViewport));
+    root.querySelector('#chat-input')?.addEventListener('blur',()=>requestAnimationFrame(updateMobileViewport));
     root.querySelector('#chat-input')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.target.closest('form').requestSubmit()}});
     root.querySelectorAll('[data-starter]').forEach(b=>b.addEventListener('click',()=>{const starter=starters.find(x=>x[0]===b.dataset.starter);if(starter)send(starter[1])}));
     root.querySelector('#chat-clear')?.addEventListener('click',()=>{if(!confirm('清空伙伴的本地对话记录？'))return;messages=[];save();renderMessages()});

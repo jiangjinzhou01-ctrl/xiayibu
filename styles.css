@@ -147,3 +147,78 @@ body.companion-panel-open{overflow:hidden}
 }
 @media(max-width:390px){.chat-head-button{min-width:39px}.companion-page .chat-identity small{max-width:95px}}
 @media(prefers-reduced-motion:reduce){.companion-page .companion-tools{transition:none}}
+
+/* Compact mobile rhythm and a dedicated chat input layer. */
+.brand-mark svg{width:29px;height:29px;fill:none;stroke:#dafa95;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.brand-mark svg circle{fill:#fffefa;stroke:none}
+.chat-focus-trigger{display:none}
+@media(max-width:880px){
+  :root{--mobile-nav-space:64px}
+  .workspace{padding-bottom:calc(var(--mobile-nav-space) + env(safe-area-inset-bottom))}
+  .topbar{height:54px;min-height:54px;padding:0 15px}
+  .mobile-brand{gap:8px;font-size:15px}
+  .mobile-brand .brand-mark{width:27px;height:27px;border-radius:8px}
+  .mobile-brand .brand-mark svg{width:23px;height:23px}
+  .topbar .avatar{width:32px;height:32px;font-size:16px}
+  .mobile-nav{min-height:0;padding:4px max(8px,env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));box-shadow:0 -4px 16px #1633220c}
+  .mobile-nav .mobile-link,.mobile-more summary{width:54px;min-height:48px;gap:2px;padding:2px;font-size:10px;border-radius:10px}
+  .mobile-nav a span,.mobile-more summary span{font-size:10px}
+  .mobile-nav .nav-icon{width:19px;height:19px}
+  .mobile-nav .companion-link{margin-top:0}
+  .mobile-nav .companion-link .nav-icon{width:19px;height:19px;padding:0;background:none;color:inherit;border-radius:0;box-shadow:none}
+  .mobile-nav .companion-link.active{background:#e9f2e6}
+  .mobile-nav .companion-link:hover .nav-icon,.mobile-nav .companion-link.active .nav-icon{transform:none;box-shadow:none}
+  body:has(main.companion-route) .footer{display:none}
+  .companion-page{height:calc(var(--visual-height,100dvh) - 54px - var(--mobile-nav-space) - env(safe-area-inset-bottom));min-height:0}
+  .companion-page .chat-card{padding-bottom:var(--chat-dock-height,119px);min-height:0}
+  .companion-page .chat-thread{min-height:0;scroll-padding-bottom:12px}
+  .companion-page .chat-dock{position:fixed;left:0;right:0;bottom:calc(var(--mobile-nav-space) + env(safe-area-inset-bottom) + var(--visual-bottom,0px));z-index:30;border-top:1px solid #e3e9e1;background:#fffefa;box-shadow:0 -8px 24px #18332d0b;padding:0 0 2px}
+  .chat-focus-trigger{display:flex}
+  body:has(#chat-input:focus) .mobile-nav{display:none}
+  body:has(#chat-input:focus) .companion-page{height:calc(var(--visual-height,100dvh) - 54px)}
+  body:has(#chat-input:focus) .companion-page .chat-dock{bottom:var(--visual-bottom,0px)}
+}
+@media(max-width:690px){
+  main:not(.companion-route){padding:16px 14px calc(29px + var(--mobile-nav-space) + env(safe-area-inset-bottom))}
+  .page-title{font-size:26px;margin:5px 0 7px;line-height:1.23}
+  .page-intro{margin-bottom:16px}
+  .subtitle{font-size:12px;line-height:1.55}
+  .hero{min-height:0;padding:20px 19px;border-radius:17px;box-shadow:0 8px 20px #153d3614}
+  .hero h1{font-size:28px;margin:11px 0 10px;line-height:1.19}
+  .hero p{font-size:12px;line-height:1.55;margin-bottom:14px}
+  .hero-kicker{font-size:10px}
+  .hero-actions{gap:8px}
+  .hero-actions .btn{padding:8px 11px;min-height:38px;font-size:11px}
+  .section-head{margin:17px 0 10px}
+  .section-head h2{font-size:16px}
+  .section-head p{font-size:11px;margin-top:3px}
+  .cards-3,.two-col,.split{gap:9px}
+  .stat-card{min-height:78px;padding:9px 10px;border-radius:12px}
+  .stat-value{font-size:21px;margin-top:4px}
+  .panel{padding:15px;border-radius:14px}
+  .panel-head{margin-bottom:12px}
+  .panel-head h2,.panel-head h3{font-size:15px}
+  .feature-card{padding:15px;gap:9px}
+  .feature-icon{width:35px;height:35px}
+  .callout{padding:12px 13px;font-size:12px}
+  .companion-page .chat-head{min-height:54px;padding:5px 9px}
+  .companion-page .chat-identity .buddy-mini{width:29px;height:29px;border-radius:9px}
+  .companion-page .chat-identity strong{font-size:12px}
+  .companion-page .chat-identity small{font-size:9px;margin-top:1px}
+  .chat-head-button{min-width:38px;min-height:41px;padding:3px 2px;gap:1px;font-size:9px}
+  .chat-head-button .nav-icon{width:16px;height:16px}
+  .chat-goal{padding:6px 11px;font-size:10px}
+  .companion-page .chat-thread{padding:12px 12px;gap:10px}
+  .companion-page .chat-welcome .buddy-mini{width:45px;height:45px;border-radius:15px}
+  .companion-page .chat-welcome h2{font-size:18px}
+  .companion-page .chat-welcome p{font-size:11px;line-height:1.6}
+  .companion-page .chat-starters{padding:6px 11px 0}
+  .companion-page .chat-starters button{min-height:29px;padding:4px 9px;font-size:10px}
+  .companion-page .chat-compose{margin:6px 10px 0;padding:4px 5px 4px 10px}
+  .companion-page .chat-compose textarea{min-height:37px;font-size:16px}
+  .companion-page .chat-send{width:35px;height:35px}
+  .companion-page .chat-privacy{margin:4px 11px 6px;font-size:9px;line-height:1.3}
+  .companion-panel .panel-headline{padding:12px 16px}
+  .companion-panel .panel-headline h2{font-size:18px}
+}
+@media(max-width:390px){.mobile-nav .mobile-link,.mobile-more summary{width:49px}.chat-head-button{min-width:35px}.companion-page .chat-identity small{max-width:80px}}
