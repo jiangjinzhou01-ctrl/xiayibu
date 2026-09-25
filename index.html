@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f5f0">
+  <meta name="description" content="下一步：把找工作这件大事，拆成今天就能完成的一小步。免费、无需登录、数据只保存在你的浏览器。">
+  <title>下一步 · 你的求职行动工作台</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <a class="brand" href="#overview" aria-label="下一步 首页"><span class="brand-mark">↗</span><span><strong>下一步</strong><small>NEXT STEP</small></span></a>
+      <div class="side-caption">求职行动工作台</div>
+      <nav class="side-nav" id="side-nav">
+        <a href="#overview" data-nav="overview"><span class="nav-ico">◫</span>总览</a>
+        <a href="#direction" data-nav="direction"><span class="nav-ico">◇</span>定方向</a>
+        <a href="#resume" data-nav="resume"><span class="nav-ico">▤</span>简历工坊</a>
+        <a href="#tracker" data-nav="tracker"><span class="nav-ico">▥</span>投递看板</a>
+        <a href="#safety" data-nav="safety"><span class="nav-ico">✳</span>求职避坑</a>
+        <a href="#resources" data-nav="resources"><span class="nav-ico">↗</span>公共资源</a>
+      </nav>
+      <div class="side-bottom"><div class="side-quote">“前进，不需要一次想清楚所有事。”</div><span class="privacy-dot"></span>免费使用 · 本地保存</div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar"><div class="mobile-brand"><span class="brand-mark">↗</span><strong>下一步</strong></div><div class="breadcrumb">你的求职空间 <span>/</span> <strong id="crumb-title">总览</strong></div><div class="top-actions"><span class="today" id="today-label"></span><button class="avatar" id="settings-open" aria-label="数据与设置" title="数据与设置">⚙</button></div></header>
+      <main id="main" tabindex="-1"></main>
+      <footer class="footer"><span>下一步 / 把目标变成行动</span><span>无需登录 · 无广告 · 数据保存在此设备浏览器</span></footer>
+    </div>
+  </div>
+  <nav class="mobile-nav" aria-label="移动端导航">
+    <a href="#overview" data-nav="overview"><span>◫</span>总览</a><a href="#direction" data-nav="direction"><span>◇</span>方向</a><a href="#resume" data-nav="resume"><span>▤</span>简历</a><a href="#tracker" data-nav="tracker"><span>▥</span>投递</a><a href="#safety" data-nav="safety"><span>✳</span>避坑</a><a href="#resources" data-nav="resources"><span>↗</span>资源</a>
+  </nav>
+  <div id="dialog-root"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
