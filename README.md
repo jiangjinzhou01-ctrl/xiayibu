@@ -32,3 +32,16 @@
 ## 技术
 
 原生 HTML / CSS / JavaScript，无打包依赖。兼容现代桌面和移动浏览器。源码按需修改即可复用。
+
+## 求职伙伴与联网 AI
+
+「求职伙伴」默认提供本地引导：方向拆解、简历经历结构、面试练习和搜索清单。对话保存在本机浏览器。搜索清单打开 BOSS 直聘、智联招聘、中国公共招聘网、国家大学生就业服务平台的官网，由用户在原站搜索和核实岗位；本地模式不抓取实时职位、不声称已联网。
+
+可选的联网 AI 后端放在 [`worker/`](worker/)：Cloudflare Worker 代为调用 OpenAI Responses API，在需要搜索岗位或最新信息时开启 `web_search`，并将网页引用链接交给前端展示。GitHub Pages 只托管前端，无法保管付费模型密钥。**部署 Worker、准备 OpenAI API 额度、设置私密访问令牌是独立步骤；ChatGPT 订阅不能自动为此接口付费。** 不部署 Worker，网站的本地功能仍可用。
+
+部署时在自己的 Cloudflare 账户中创建 Worker，使用 `worker/index.js` 与 `worker/wrangler.jsonc`，将以下值设置为 Worker 环境 secret（切勿提交到 GitHub）：
+
+- `OPENAI_API_KEY`：自己的 OpenAI API 密钥。
+- `AGENT_ACCESS_TOKEN`：自行生成的高强度随机访问令牌，用来限制 API 费用暴露。
+
+`APP_ORIGIN` 必须与正式网页的 origin 完全一致。`OPENAI_MODEL` 可更换为账户可用的模型。部署后在网页「求职伙伴 → 配置 AI 接口」填写 Worker 的 `https://.../api/chat` 地址与访问令牌。访问令牌只保留在当前页面内存，刷新后须重新填写；接口地址保存在当前浏览器。对话发送到该 Worker；「发送求职方向与简历文字」默认不勾选，即使勾选也会省略姓名、电话、邮箱和简历城市字段。Worker 不要求公开招聘平台账号，不代替用户登录、抓取或投递。请在 OpenAI 项目中设置使用额度，并根据实际访问量增设限流或独立用户身份验证；浏览器的跨域限制不等于服务端认证。

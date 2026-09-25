@@ -1,0 +1,9 @@
+{
+  "name": "xiayibu-agent",
+  "main": "index.js",
+  "compatibility_date": "2025-07-01",
+  "vars": {
+    "APP_ORIGIN": "https://jiangjinzhou01-ctrl.github.io",
+    "OPENAI_MODEL": "gpt-5-mini"
+  }
+}
