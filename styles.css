@@ -262,6 +262,9 @@ button:active,.btn:active,.side-nav a:active,.mobile-nav a:active,.mobile-more s
   body:has(#chat-input:focus) .companion-page{height:calc(var(--visual-height,100dvh) - 54px)}
 }
 .chat-thread>.chat-row{flex:0 0 auto}
+.companion-page .companion-layout{min-height:0}
+@media(min-width:881px){.companion-page .companion-layout{grid-template-rows:minmax(0,1fr)}}
+@media(max-width:880px){.companion-page .chat-card{max-height:100%}.companion-page .chat-thread{height:0;flex:1 1 0;min-height:0}}
 @media(max-width:880px) and (prefers-reduced-motion:no-preference){
   .companion-panel:not([hidden]),.modal,.companion-page .companion-tools.is-open{animation:sheet-enter .23s var(--motion-curve) both}
 }
