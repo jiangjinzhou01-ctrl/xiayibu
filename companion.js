@@ -14,8 +14,8 @@
   let protocol = provider.protocol==='anthropic'?'anthropic':'openai';
   const savedConnections = provider.connections && typeof provider.connections==='object' ? provider.connections : {};
   const connections = {
-    openai:{base:savedConnections.openai?.base||provider.base||'',model:savedConnections.openai?.model||provider.model||'',maxTokens:savedConnections.openai?.maxTokens||2048},
-    anthropic:{base:savedConnections.anthropic?.base||'https://api.anthropic.com/v1',model:savedConnections.anthropic?.model||'',maxTokens:savedConnections.anthropic?.maxTokens||2048}
+    openai:{base:savedConnections.openai?.base||provider.base||'',inputBase:savedConnections.openai?.inputBase||savedConnections.openai?.base||provider.base||'',model:savedConnections.openai?.model||provider.model||'',maxTokens:savedConnections.openai?.maxTokens||2048},
+    anthropic:{base:savedConnections.anthropic?.base||'https://api.anthropic.com/v1',inputBase:savedConnections.anthropic?.inputBase||savedConnections.anthropic?.base||'https://api.anthropic.com/v1',model:savedConnections.anthropic?.model||'',maxTokens:savedConnections.anthropic?.maxTokens||2048}
   };
   const providerKeys = {openai:'',anthropic:''};
   let modelReady = false;
@@ -68,11 +68,12 @@
   let availableModels = [];
   let fetchedBase = '';
   let fetchedProtocol = '';
+  let fetchedResolvedBase = '';
   const normalizeModel = value => String(value).toLowerCase().replace(/[^a-z0-9]/g,'');
   async function readApiJson(response) {
     const raw=await response.text();
     try { return JSON.parse(raw) }
-    catch { throw new Error(response.ok?'接口返回了网页或非 JSON 数据。请核对 API 基础地址，通常需要填写到 /v1。':`接口返回 ${response.status}，且不是可读取的 JSON。请核对 API 地址与密钥。`) }
+    catch { throw new Error(response.ok?'接口返回了网页或非 JSON 数据，请核对商家提供的 API 网关地址。':`接口返回 ${response.status}，且不是可读取的 JSON。请核对 API 地址与密钥。`) }
   }
   function answerText(body,native) {
     const content=native?body.content:body.choices?.[0]?.message?.content;
@@ -109,7 +110,7 @@
     <section class="tool-card ai-settings"><div class="tool-kicker">02 / YOUR AI</div><h2>选择你的伙伴</h2><p>默认使用零费用的本地引导。设备允许时，也可下载轻量模型，或连接自己的 API。</p><div class="mode-picks"><button type="button" data-mode="guide">本地引导</button><button type="button" data-mode="device">浏览器模型</button><button type="button" data-mode="compatible">兼容 API</button><button type="button" data-mode="worker">联网接口</button></div>
     <div data-mode-panel="guide" class="mode-detail"><p>方向、简历、面试和岗位搜索都可以直接开始。回复由本地规则生成，不会冒充大模型。</p></div>
     <div data-mode-panel="device" class="mode-detail"><p>英语试用：SmolLM2 135M 量化模型。首次需下载约 200 MB，生成速度受设备影响。中文提问会自动使用本地引导；无需 API 费用。</p><button type="button" id="model-load" class="btn btn-ghost btn-sm">下载并加载模型</button><p class="subtle" id="model-status">加载后只在当前页面会话中使用；无需预先下载也可继续本地引导。</p></div>
-    <div data-mode-panel="compatible" class="mode-detail"><form id="provider-form"><label class="field">接口格式<select id="provider-protocol"><option value="openai" ${protocol==='openai'?'selected':''}>OpenAI 兼容（GPT、兼容网关）</option><option value="anthropic" ${protocol==='anthropic'?'selected':''}>Claude 原生（Messages API）</option></select></label><label class="field"><span id="provider-base-label">${protocol==='anthropic'?'Claude API 基础地址':'兼容网关基础地址'}</span><input id="provider-base" type="url" inputmode="url" placeholder="${protocol==='anthropic'?'https://api.anthropic.com/v1':'https://example.com/v1'}" value="${escape(connections[protocol].base)}"></label><p class="subtle">填写供应商提供的 API 基础地址（通常以 /v1 结尾），不是官网首页；可先点“读取模型列表”验证。</p><label class="field">API 密钥<input id="provider-key" type="password" autocomplete="off" placeholder="仅在本次页面会话中保留"></label><button type="button" id="fetch-models" class="btn btn-ghost btn-sm">读取模型列表</button><label class="field" style="margin-top:12px">选择或输入模型<input id="provider-model" list="provider-models" value="${escape(connections[protocol].model)}"><datalist id="provider-models"></datalist></label><label class="field">单次输出上限（Token）<input id="provider-max-tokens" type="number" min="256" max="8192" step="256" value="${escape(connections[protocol].maxTokens)}"></label><p class="subtle">推理模型也会消耗输出 Token；过小可能只生成推理而没有正文。提高上限可能增加费用。</p><label class="chat-opt"><input type="checkbox" id="share-context"> <span>发送求职方向和简历文字（不含联系方式）</span></label><button type="submit" class="btn btn-dark btn-sm">保存接口和模型</button><p class="subtle" id="provider-status">密钥只在当前页面内存中；请填写可信供应商的 API 密钥。接口须允许浏览器跨域请求，使用可能产生费用。</p></form><p class="subtle" id="provider-protocol-note" ${protocol==='openai'?'hidden':''}>Claude 原生使用 /v1/messages；API 密钥与 Claude 聊天订阅分开。浏览器直连需供应商允许跨域请求，也会把密钥交给本页面代码。</p><div class="model-catalog" id="model-catalog" ${protocol==='anthropic'?'hidden':''}><div class="model-catalog-head"><strong>开放权重模型参考</strong><span>2026 / 09</span></div><p>开放权重不等于免费 API。先读取当前网关的模型列表，出现“选用此模型”后才能一键填入；也可以手动输入准确的模型 ID。</p><div id="open-model-list">${modelCatalog.map((item,index)=>`<article data-model-card="${index}" class="open-model-card"><div><strong>${escape(item.name)}</strong><small>${escape(item.hint)}</small><a href="${escape(item.link)}" target="_blank" rel="noopener noreferrer">官方模型页 ↗</a></div><button type="button" disabled data-model-pick="${index}">当前网关未显示</button></article>`).join('')}</div></div></div>
+    <div data-mode-panel="compatible" class="mode-detail"><form id="provider-form"><label class="field">接口格式<select id="provider-protocol"><option value="openai" ${protocol==='openai'?'selected':''}>OpenAI 兼容（GPT、兼容网关）</option><option value="anthropic" ${protocol==='anthropic'?'selected':''}>Claude 原生（Messages API）</option></select></label><label class="field"><span id="provider-base-label">${protocol==='anthropic'?'Claude API 网关地址':'API 网关地址'}</span><input id="provider-base" type="text" inputmode="url" placeholder="${protocol==='anthropic'?'https://api.anthropic.com/v1':'https://example.com'}" value="${escape(connections[protocol].inputBase)}"></label><p class="subtle">直接粘贴商家给你的网关地址，无需手动添加 /v1 或 /v2；也支持完整 API 地址。</p><label class="field">API 密钥<input id="provider-key" type="password" autocomplete="off" placeholder="仅在本次页面会话中保留"></label><button type="button" id="fetch-models" class="btn btn-ghost btn-sm">检测网关并获取模型</button><label class="field" style="margin-top:12px">选择或输入模型<input id="provider-model" list="provider-models" value="${escape(connections[protocol].model)}"><datalist id="provider-models"></datalist></label><label class="field">单次输出上限（Token）<input id="provider-max-tokens" type="number" min="256" max="8192" step="256" value="${escape(connections[protocol].maxTokens)}"></label><p class="subtle">推理模型也会消耗输出 Token；过小可能只生成推理而没有正文。提高上限可能增加费用。</p><label class="chat-opt"><input type="checkbox" id="share-context"> <span>发送求职方向和简历文字（不含联系方式）</span></label><button type="submit" class="btn btn-dark btn-sm">保存并连接</button><p class="subtle" id="provider-status">密钥只在当前页面内存中；请填写可信供应商的 API 密钥。接口须允许浏览器跨域请求，使用可能产生费用。</p></form><p class="subtle" id="provider-protocol-note" ${protocol==='openai'?'hidden':''}>Claude 原生使用 /v1/messages；API 密钥与 Claude 聊天订阅分开。浏览器直连需供应商允许跨域请求，也会把密钥交给本页面代码。</p><div class="model-catalog" id="model-catalog" ${protocol==='anthropic'?'hidden':''}><div class="model-catalog-head"><strong>开放权重模型参考</strong><span>2026 / 09</span></div><p>开放权重不等于免费 API。先检测网关并获取模型，出现“选用此模型”后才能一键填入；也可以手动输入准确的模型 ID。</p><div id="open-model-list">${modelCatalog.map((item,index)=>`<article data-model-card="${index}" class="open-model-card"><div><strong>${escape(item.name)}</strong><small>${escape(item.hint)}</small><a href="${escape(item.link)}" target="_blank" rel="noopener noreferrer">官方模型页 ↗</a></div><button type="button" disabled data-model-pick="${index}">当前网关未显示</button></article>`).join('')}</div></div></div>
     <div data-mode-panel="worker" class="mode-detail"><p>连接你部署的受保护接口。联网搜索仅在接口已开启并支持时可用。</p><form id="config-form"><label class="field">接口地址<input id="agent-endpoint" type="url" inputmode="url" placeholder="https://你的-worker.workers.dev/api/chat" value="${escape(endpoint)}"></label><label class="field">访问令牌<input id="agent-token" type="password" autocomplete="off" placeholder="只在当前页面会话中保留"></label><label class="chat-opt"><input type="checkbox" id="share-worker-context"> <span>发送求职方向和简历文字（不含联系方式）</span></label><div class="form-actions"><button class="btn btn-dark btn-sm" type="submit">保存接口</button><button class="btn btn-ghost btn-sm" type="button" id="config-remove">清除接口</button></div><p class="subtle">令牌刷新后需重新输入，请勿将模型 API Key 填在这里。</p></form></div></section></aside></div></div>`; }
   function renderMessages() {
     const thread = $('#chat-thread'); if (!thread) return;
@@ -172,7 +173,44 @@
     } catch (error) { messages.push({role:'assistant',error:true,text:`这次没能生成回复：${error.message}\n\n你的问题仍保存在本机。请检查当前模式的设置，或切换到本地引导。`,sources:[]}); save(); }
     finally {busy=false;if(form)form.querySelector('button').disabled=false;renderMessages();}
   }
-  function validBase(value){const u=new URL(value.trim());if(u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1'].includes(u.hostname)))throw Error('请使用 HTTPS 网关');if(u.username||u.password||u.search||u.hash)throw Error('网关地址不要包含账号、参数或片段');return u.href.replace(/\/$/,'')}
+  function validBase(value){
+    const raw=value.trim();
+    if(!raw)throw Error('请填写商家提供的网关地址');
+    const u=new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(raw)?raw:'https://'+raw);
+    if(u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1'].includes(u.hostname)))throw Error('请使用 HTTPS 网关');
+    if(u.username||u.password||u.search||u.hash)throw Error('网关地址不要包含账号、参数或片段');
+    return u.href.replace(/\/$/,'').replace(/\/(?:chat\/completions|messages|models)$/i,'');
+  }
+  function candidateBases(input){
+    const base=validBase(input);
+    const version=base.match(/\/v([12])$/i);
+    return [...new Set(version
+      ? [base,base.replace(/\/v[12]$/i,`/v${version[1]==='1'?'2':'1'}`),base.replace(/\/v[12]$/i,'')]
+      : [base+'/v1',base+'/v2',base])];
+  }
+  async function discoverGateway(input,key,requestedProtocol){
+    const headers=requestedProtocol==='anthropic'?{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}:{Authorization:'Bearer '+key};
+    let lastError;
+    for(const base of candidateBases(input)){
+      try{
+        const response=await fetch(base+'/models',{headers,redirect:'error',signal:AbortSignal.timeout(8000)});
+        const data=await readApiJson(response);
+        if(!response.ok)throw Error(data.error?.message||`接口返回 ${response.status}`);
+        if(data.error)throw Error(data.error.message||'网关返回了错误');
+        if(!Array.isArray(data.data))throw Error('接口没有返回标准模型列表');
+        const models=data.data.map(x=>x?.id).filter(x=>typeof x==='string'&&x.length<160).slice(0,500);
+        return {base,models};
+      }catch(error){lastError=error}
+    }
+    throw Error(`无法自动识别 API 地址（已尝试 /v1、/v2 和原地址）。${lastError?.message||'请核对地址与密钥。'}`);
+  }
+  function showDiscovered(input,requestedProtocol,result){
+    if(requestedProtocol!==protocol||input!==$('#provider-base').value.trim())return false;
+    availableModels=result.models;fetchedBase=input;fetchedResolvedBase=result.base;fetchedProtocol=protocol;
+    renderModelCatalog();
+    $('#provider-models').innerHTML=result.models.map(x=>`<option value="${escape(x)}"></option>`).join('');
+    return true;
+  }
   function mount(root, data) {
     context=data||{}; renderMessages();
     root.querySelector('#chat-form')?.addEventListener('submit',e=>{e.preventDefault();const input=$('#chat-input');const text=input.value.trim();if(!text||busy)return;input.value='';send(text)});
@@ -189,23 +227,59 @@
       provider.protocol=protocol;
       provider.connections=connections;
       localStorage.setItem(PROVIDER_KEY,JSON.stringify(provider));
-      $('#provider-base').value=connections[protocol].base;
-      $('#provider-base').placeholder=protocol==='anthropic'?'https://api.anthropic.com/v1':'https://example.com/v1';
-      $('#provider-base-label').textContent=protocol==='anthropic'?'Claude API 基础地址':'兼容网关基础地址';
+      $('#provider-base').value=connections[protocol].inputBase;
+      $('#provider-base').placeholder=protocol==='anthropic'?'https://api.anthropic.com/v1':'https://example.com';
+      $('#provider-base-label').textContent=protocol==='anthropic'?'Claude API 网关地址':'API 网关地址';
       $('#provider-model').value=connections[protocol].model;
       $('#provider-max-tokens').value=connections[protocol].maxTokens;
       $('#provider-key').value=providerKeys[protocol];
       $('#provider-models').replaceChildren();
       $('#provider-protocol-note').hidden=protocol!=='anthropic';
       $('#model-catalog').hidden=protocol==='anthropic';
-      availableModels=[];fetchedBase='';fetchedProtocol='';renderModelCatalog();
+      availableModels=[];fetchedBase='';fetchedResolvedBase='';fetchedProtocol='';renderModelCatalog();
       $('#provider-status').textContent='已切换接口格式。填写并保存该接口的地址、密钥和模型后使用。';
       $('#agent-mode-label').textContent=modeLabel();
     });
-    root.querySelectorAll('[data-model-pick]').forEach(button=>button.addEventListener('click',()=>{if(!button.dataset.modelId)return;$('#provider-model').value=button.dataset.modelId;$('#provider-status').textContent='已选中当前网关提供的 '+button.dataset.modelId+'；点击“保存网关和模型”后生效。'}));
-    root.querySelector('#provider-base')?.addEventListener('input',renderModelCatalog);renderModelCatalog();
-    root.querySelector('#fetch-models')?.addEventListener('click',async()=>{const status=$('#provider-status'),requestedProtocol=protocol;try{const base=validBase($('#provider-base').value);const key=$('#provider-key').value.trim()||providerKeys[protocol];if(!key)throw Error('请先填写 API 密钥');status.textContent='正在读取模型列表…';const headers=requestedProtocol==='anthropic'?{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}:{Authorization:'Bearer '+key};const response=await fetch(base+'/models',{headers,signal:AbortSignal.timeout(15000)});const data=await readApiJson(response);if(!response.ok)throw Error(data.error?.message||`接口返回 ${response.status}`);if(data.error)throw Error(data.error.message||'网关返回了错误');if(requestedProtocol!==protocol||base!==validBase($('#provider-base').value))return;const models=Array.isArray(data.data)?data.data.map(x=>x.id).filter(x=>typeof x==='string'&&x.length<160).slice(0,500):[];availableModels=models;fetchedBase=$('#provider-base').value.trim();fetchedProtocol=protocol;renderModelCatalog();$('#provider-models').innerHTML=models.map(x=>`<option value="${escape(x)}"></option>`).join('');status.textContent=models.length?`读取到 ${models.length} 个模型。可选择或手动输入。`:'接口未返回模型列表，请核对基础地址或联系供应商；也可手动输入模型 ID。'}catch(error){if(requestedProtocol!==protocol)return;availableModels=[];fetchedBase='';fetchedProtocol='';renderModelCatalog();status.textContent='读取失败：'+error.message+' 若浏览器提示跨域限制，请使用允许 CORS 的接口。'}});
-    root.querySelector('#provider-form')?.addEventListener('submit',e=>{e.preventDefault();try{const base=validBase($('#provider-base').value),model=$('#provider-model').value.trim().slice(0,150),key=$('#provider-key').value.trim()||providerKeys[protocol],maxTokens=Number($('#provider-max-tokens').value);if(!model)throw Error('请输入模型名');if(!key)throw Error('请输入 API 密钥');if(!Number.isInteger(maxTokens)||maxTokens<256||maxTokens>8192)throw Error('输出上限请填写 256 到 8192 之间的整数');connections[protocol]={base,model,maxTokens};providerKeys[protocol]=key;provider.protocol=protocol;provider.connections=connections;delete provider.base;delete provider.model;localStorage.setItem(PROVIDER_KEY,JSON.stringify(provider));$('#provider-status').textContent='已保存该接口和模型；密钥只在当前页面会话保留。'}catch(error){$('#provider-status').textContent=error.message}});
+    root.querySelectorAll('[data-model-pick]').forEach(button=>button.addEventListener('click',()=>{if(!button.dataset.modelId)return;$('#provider-model').value=button.dataset.modelId;$('#provider-status').textContent='已选中当前网关提供的 '+button.dataset.modelId+'；点击“保存并连接”后生效。'}));
+    const resetDiscovery=()=>{availableModels=[];fetchedBase='';fetchedResolvedBase='';fetchedProtocol='';$('#provider-models').replaceChildren();renderModelCatalog()};
+    root.querySelector('#provider-base')?.addEventListener('input',resetDiscovery);
+    root.querySelector('#provider-key')?.addEventListener('input',resetDiscovery);
+    renderModelCatalog();
+    root.querySelector('#fetch-models')?.addEventListener('click',async()=>{
+      const status=$('#provider-status'),requestedProtocol=protocol,input=$('#provider-base').value.trim();
+      try{
+        validBase(input);
+        const key=$('#provider-key').value.trim()||providerKeys[protocol];
+        if(!key)throw Error('请先填写 API 密钥');
+        status.textContent='正在检测网关并读取模型…';
+        const result=await discoverGateway(input,key,requestedProtocol);
+        if(key!==($('#provider-key').value.trim()||providerKeys[requestedProtocol]))return;
+        if(!showDiscovered(input,requestedProtocol,result))return;
+        status.textContent=`已识别接口地址：${result.base}。读取到 ${result.models.length} 个模型，可选择或手动输入。`;
+      }catch(error){
+        if(requestedProtocol!==protocol||input!==$('#provider-base').value.trim())return;
+        availableModels=[];fetchedBase='';fetchedResolvedBase='';fetchedProtocol='';renderModelCatalog();
+        status.textContent='检测失败：'+error.message+' 若浏览器提示跨域限制，请使用允许 CORS 的接口。';
+      }
+    });
+    root.querySelector('#provider-form')?.addEventListener('submit',async e=>{
+      e.preventDefault();const requestedProtocol=protocol,input=$('#provider-base').value.trim(),status=$('#provider-status');
+      try{
+        validBase(input);
+        const model=$('#provider-model').value.trim().slice(0,150),key=$('#provider-key').value.trim()||providerKeys[protocol],maxTokens=Number($('#provider-max-tokens').value);
+        if(!key)throw Error('请输入 API 密钥');
+        if(!Number.isInteger(maxTokens)||maxTokens<256||maxTokens>8192)throw Error('输出上限请填写 256 到 8192 之间的整数');
+        status.textContent='正在自动检测网关…';
+        const result=fetchedBase===input&&fetchedProtocol===protocol&&fetchedResolvedBase?{base:fetchedResolvedBase,models:availableModels}:await discoverGateway(input,key,requestedProtocol);
+        if(key!==($('#provider-key').value.trim()||providerKeys[requestedProtocol]))return;
+        if(!showDiscovered(input,requestedProtocol,result))return;
+        if(!model)throw Error('请选择或输入模型名，然后再次点击保存');
+        connections[protocol]={base:result.base,inputBase:input,model,maxTokens};providerKeys[protocol]=key;
+        provider.protocol=protocol;provider.connections=connections;delete provider.base;delete provider.model;
+        localStorage.setItem(PROVIDER_KEY,JSON.stringify(provider));
+        status.textContent=`已连接：${result.base} · ${model}。密钥仅在当前页面会话保留。`;
+      }catch(error){if(requestedProtocol===protocol&&input===$('#provider-base').value.trim())status.textContent=error.message}
+    });
     root.querySelector('#config-form')?.addEventListener('submit',e=>{e.preventDefault();const raw=$('#agent-endpoint').value.trim();try{const url=new URL(raw);if(url.protocol!=='https:' && !(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('请使用 HTTPS 接口');endpoint=url.href;localStorage.setItem(CONFIG_KEY,endpoint);accessToken=$('#agent-token').value.trim();setMode('worker');}catch(error){alert(error.message)}});
     root.querySelector('#config-remove')?.addEventListener('click',()=>{endpoint='';accessToken='';localStorage.removeItem(CONFIG_KEY);$('#agent-endpoint').value='';$('#agent-token').value='';setMode('guide')});
   }
