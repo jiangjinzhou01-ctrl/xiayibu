@@ -46,6 +46,7 @@
     });
   }
   let busy = false;
+  let renderedMessageCount = messages.length;
   let context = {};
   let dockObserver;
   function updateMobileViewport(){
@@ -142,7 +143,9 @@
   </div>`; }
   function renderMessages() {
     const thread = $('#chat-thread'); if (!thread) return;
-    thread.innerHTML = messages.length ? messages.map((m,index) => `<div class="chat-row ${m.role} ${index===messages.length-1?'fresh-message':''}"><span class="chat-avatar">${m.role==='assistant'?'✦':'我'}</span><div class="chat-bubble"><div class="chat-text">${escape(m.text)}</div>${m.role==='user'?`<button type="button" class="remember-button" data-remember="${index}" aria-label="记住这条消息">记住这条</button>`:''}${m.online?`<details class="model-reasoning"><summary>模型思考${m.reasoning?' · 点击展开':' · 接口未提供可显示内容'}</summary>${m.reasoning?`<div>${escape(m.reasoning)}</div>`:''}</details>`:''}${m.sources?.length?`<div class="chat-sources"><strong>来源</strong>${m.sources.map(s=>{try{const u=new URL(s.url);if(u.protocol!=='https:')return '';return `<a href="${escape(u.href)}" target="_blank" rel="noopener noreferrer">${escape((s.title||u.hostname).slice(0,75))} ↗</a>`}catch{return ''}}).join('')}</div>`:''}</div></div>`).join('') : `<div class="chat-welcome"><span class="buddy-mini"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg#sparkle"></use></svg></span><h2>今天想走哪一步？</h2><p>说说现在最想解决的问题，或从下方的快捷提问开始。我们一起把它变成一件能做的事。</p></div>`;
+    const freshIndex=messages.length>renderedMessageCount?messages.length-1:-1;
+    renderedMessageCount=messages.length;
+    thread.innerHTML = messages.length ? messages.map((m,index) => `<div class="chat-row ${m.role} ${index===freshIndex?'fresh-message':''}"><span class="chat-avatar">${m.role==='assistant'?'✦':'我'}</span><div class="chat-bubble"><div class="chat-text">${escape(m.text)}</div>${m.role==='user'?`<button type="button" class="remember-button" data-remember="${index}" aria-label="记住这条消息">记住这条</button>`:''}${m.online?`<details class="model-reasoning"><summary>模型思考${m.reasoning?' · 点击展开':' · 接口未提供可显示内容'}</summary>${m.reasoning?`<div>${escape(m.reasoning)}</div>`:''}</details>`:''}${m.sources?.length?`<div class="chat-sources"><strong>来源</strong>${m.sources.map(s=>{try{const u=new URL(s.url);if(u.protocol!=='https:')return '';return `<a href="${escape(u.href)}" target="_blank" rel="noopener noreferrer">${escape((s.title||u.hostname).slice(0,75))} ↗</a>`}catch{return ''}}).join('')}</div>`:''}</div></div>`).join('') : `<div class="chat-welcome"><span class="buddy-mini"><svg class="nav-icon" aria-hidden="true"><use href="./icons.svg#sparkle"></use></svg></span><h2>今天想走哪一步？</h2><p>说说现在最想解决的问题，或从下方的快捷提问开始。我们一起把它变成一件能做的事。</p></div>`;
     if (busy) thread.insertAdjacentHTML('beforeend','<div class="chat-row assistant"><span class="chat-avatar">✦</span><div class="chat-bubble chat-thinking"><i></i><i></i><i></i><span class="sr-only">正在思考</span></div></div>');
     thread.scrollTop = thread.scrollHeight;
   }

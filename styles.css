@@ -223,57 +223,49 @@ body.companion-panel-open{overflow:hidden}
 }
 @media(max-width:390px){.mobile-nav .mobile-link,.mobile-more summary{width:49px}.chat-head-button{min-width:35px}.companion-page .chat-identity small{max-width:80px}}
 
-/* Motion language: short, soft spring responses to navigation and actions. */
-:root{--motion-spring:cubic-bezier(.2,1.36,.3,1);--motion-settle:cubic-bezier(.22,1,.36,1)}
-@keyframes surface-arrive{0%{opacity:0;transform:translateY(13px) scale(.985)}65%{opacity:1;transform:translateY(-2px) scale(1.003)}100%{opacity:1;transform:none}}
-@keyframes item-pop{0%{opacity:.45;transform:scale(.87)}65%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
-@keyframes chat-enter{0%{opacity:0;transform:translateY(12px) scale(.94)}70%{opacity:1;transform:translateY(-2px) scale(1.01)}100%{opacity:1;transform:none}}
-@keyframes panel-enter{0%{opacity:0;transform:translateX(32px)}70%{opacity:1;transform:translateX(-3px)}100%{opacity:1;transform:none}}
-@keyframes sheet-enter{0%{opacity:.65;transform:translateY(35px)}70%{opacity:1;transform:translateY(-3px)}100%{opacity:1;transform:none}}
+/* Motion stays attached to the action that caused it. */
+:root{--motion-curve:cubic-bezier(.22,.72,.22,1)}
+@keyframes quiet-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes message-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes panel-enter{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes sheet-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes shade-enter{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:no-preference){
-  main:not(.companion-route)>*{animation:surface-arrive .48s var(--motion-settle) both;animation-delay:var(--in-delay,0ms)}
-  main:not(.companion-route)>:nth-child(2){--in-delay:45ms}
-  main:not(.companion-route)>:nth-child(3){--in-delay:85ms}
-  main:not(.companion-route)>:nth-child(4){--in-delay:125ms}
-  main:not(.companion-route)>:nth-child(n+5){--in-delay:155ms}
-  .chat-row.fresh-message{animation:chat-enter .42s var(--motion-spring) both}
-  .chat-welcome{animation:surface-arrive .5s var(--motion-settle) both}
-  .side-nav a.active .nav-icon,.mobile-nav .active .nav-icon,.mobile-more.active summary .nav-icon{animation:item-pop .42s var(--motion-spring) both}
-  .task input:checked,.mode-picks button.selected,.chat-starters button:active{animation:item-pop .35s var(--motion-spring)}
-  .companion-shade:not([hidden]),.modal-backdrop{animation:shade-enter .22s ease-out both}
-  .companion-panel:not([hidden]),.modal{animation:panel-enter .43s var(--motion-spring) both}
-  #toast.show{animation:sheet-enter .42s var(--motion-spring) both}
+  main:not(.companion-route)>.page-intro,main:not(.companion-route)>.hero{animation:quiet-enter .24s var(--motion-curve) both}
+  .chat-row.fresh-message{animation:message-enter .18s var(--motion-curve) both}
+  .companion-shade:not([hidden]),.modal-backdrop{animation:shade-enter .16s ease-out both}
+  .companion-panel:not([hidden]),.modal{animation:panel-enter .23s var(--motion-curve) both}
+  #toast.show{animation:sheet-enter .23s var(--motion-curve) both}
 }
-button,.btn,.side-nav a,.mobile-nav a,.mobile-more summary,.journey-links a,.platform-list a,.feature-card a,.more-menu a{transition-property:transform,background-color,border-color,color,box-shadow;transition-duration:.32s;transition-timing-function:var(--motion-spring)}
-button:active,.btn:active,.side-nav a:active,.mobile-nav a:active,.mobile-more summary:active,.journey-links a:active,.platform-list a:active,.more-menu a:active{transform:scale(.94)}
-.mobile-nav .mobile-link,.mobile-more summary{position:relative}
-.mobile-nav .mobile-link.active::after,.mobile-more.active summary::after{content:"";position:absolute;bottom:0;width:13px;height:2px;border-radius:99px;background:#3a8d61;animation:item-pop .38s var(--motion-spring) both}
-.task{transition:background-color .36s var(--motion-settle),border-color .36s var(--motion-settle),transform .36s var(--motion-spring)}
+button,.btn,.side-nav a,.mobile-nav a,.mobile-more summary,.journey-links a,.platform-list a,.more-menu a{transition:transform .16s var(--motion-curve),background-color .18s ease-out,color .18s ease-out,box-shadow .18s ease-out}
+button:active,.btn:active,.side-nav a:active,.mobile-nav a:active,.mobile-more summary:active,.journey-links a:active,.platform-list a:active,.more-menu a:active{transform:scale(.98)}
+.chat-send:active{transform:scale(.96)}
+.task{transition:background-color .2s ease-out,border-color .2s ease-out}
 .task.done{background:#f2f7ee;border-color:#cee3ca}
-.task input{transition:background-color .25s var(--motion-settle),border-color .25s var(--motion-settle),transform .35s var(--motion-spring)}
-.task input:active{transform:scale(.82)}
-.progress-rail i{transition:width .65s var(--motion-spring)}
-.field input,.field textarea,.field select,.input,.chat-compose{transition:border-color .28s var(--motion-settle),box-shadow .35s var(--motion-settle),background-color .28s var(--motion-settle)}
-.field:focus-within{color:#276c4c;transition:color .25s var(--motion-settle)}
-.field input:focus,.field textarea:focus,.field select:focus,.input:focus{border-color:#79b88b;box-shadow:0 0 0 4px #8acb9330}
-.chat-compose:focus-within{border-color:#78b787;box-shadow:0 0 0 4px #8acb9330,0 10px 22px #193e2b12}
-.chat-send:active{transform:scale(.86) rotate(-10deg)}
-.companion-page .companion-tools{transition:transform .43s var(--motion-spring),visibility .43s}
-.companion-page .companion-tools.is-open{animation:none}
-.hero-card,.hero-card-bottom,.stat-card,.feature-card,.resource-card,.job-card,.tool-card,.journey-links a{transition:transform .4s var(--motion-spring),box-shadow .4s var(--motion-settle),border-color .3s var(--motion-settle),background-color .3s var(--motion-settle)}
+.task input{transition:background-color .18s ease-out,border-color .18s ease-out,transform .18s var(--motion-curve)}
+.task input:active{transform:scale(.95)}
+.progress-rail i{transition:width .35s var(--motion-curve)}
+.field input,.field textarea,.field select,.input,.chat-compose{transition:border-color .18s ease-out,box-shadow .2s ease-out,background-color .18s ease-out}
+.field:focus-within{color:#276c4c}
+.field input:focus,.field textarea:focus,.field select:focus,.input:focus{border-color:#79b88b;box-shadow:0 0 0 3px #8acb9328}
+.chat-compose:focus-within{border-color:#78b787;box-shadow:0 0 0 3px #8acb9328}
+.companion-page .companion-tools{transition:transform .24s var(--motion-curve),visibility .24s}
+.hero-card,.hero-card-bottom,.stat-card,.feature-card,.resource-card,.job-card,.tool-card,.journey-links a{transition:transform .2s var(--motion-curve),box-shadow .2s ease-out,border-color .2s ease-out,background-color .2s ease-out}
 @media(hover:hover) and (prefers-reduced-motion:no-preference){
-  .stat-card:hover,.feature-card:hover,.resource-card:hover,.job-card:hover,.tool-card:hover{transform:translateY(-4px);box-shadow:0 17px 32px #18332d16;border-color:#bed7bc}
-  .journey-links a:hover{transform:translateX(4px)}
-  .hero:hover .hero-card{transform:translateY(-5px) rotate(-3deg)}
-  .hero:hover .hero-card-bottom{transform:translateY(-5px) rotate(4deg)}
+  .stat-card:hover,.feature-card:hover,.resource-card:hover,.job-card:hover,.tool-card:hover{transform:translateY(-2px);box-shadow:0 13px 26px #18332d10;border-color:#c8ddc6}
+  .journey-links a:hover{transform:translateX(2px)}
 }
-@media(min-width:881px) and (prefers-reduced-motion:no-preference){.companion-page .chat-card,.companion-page .companion-tools{animation:surface-arrive .48s var(--motion-settle) both}.companion-page .companion-tools{animation-delay:70ms}}
 @media(max-width:880px){
-  .companion-page .companion-tools.is-open{animation:sheet-enter .43s var(--motion-spring) both}
+  body:has(main.companion-route){overflow:hidden}
+  body:has(main.companion-route) .workspace{height:100dvh;min-height:0;overflow:hidden;padding-bottom:calc(var(--mobile-nav-space) + env(safe-area-inset-bottom))}
+  main.companion-route{flex:1 1 auto;min-height:0;overflow:hidden}
+  .companion-page{height:100%;min-height:0}
+  body:has(#chat-input:focus) .workspace{height:var(--visual-height,100dvh);padding-bottom:0}
+  body:has(#chat-input:focus) .companion-page{height:100%}
 }
-@media(max-width:880px) and (prefers-reduced-motion:no-preference){.companion-panel:not([hidden]),.modal{animation:sheet-enter .43s var(--motion-spring) both}}
-@media(max-width:880px) and (prefers-reduced-motion:no-preference){.companion-page .chat-head,.companion-page .chat-goal,.companion-page .chat-thread{animation:surface-arrive .43s var(--motion-settle) both}.companion-page .chat-goal{animation-delay:45ms}.companion-page .chat-thread{animation-delay:80ms}}
+@media(max-width:880px) and (prefers-reduced-motion:no-preference){
+  .companion-panel:not([hidden]),.modal,.companion-page .companion-tools.is-open{animation:sheet-enter .23s var(--motion-curve) both}
+}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
