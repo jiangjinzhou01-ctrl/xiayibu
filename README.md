@@ -8,6 +8,12 @@
 
 数据默认只保存在当前浏览器的 `localStorage`。右上角「数据与设置」可导出或导入完整 JSON 备份；投递记录也可导出 CSV。清除浏览器数据或换设备前请先备份。风险检查的原始文本只在当前页面临时处理。
 
+## 伙伴记忆与模型思考
+
+「伙伴记忆」可以手动编辑，也可以对某条用户消息点「记住这条」；最多保存 2000 个字，单独存在本地浏览器。在线模型调用会附上这段记忆，用户可随时清除；导出完整备份时也会包含记忆。清空对话不会清除记忆。
+
+兼容 API 默认使用「自动」输出长度：OpenAI 兼容 Chat Completions 请求不传客户端的 `max_tokens` / `max_completion_tokens`；Claude 原生 Messages 请求必须指定 `max_tokens`，自动模式设为 8192，手动可调整到 131072（实际须符合模型限制）。这并不保证无限输出，仍受供应商模型、上下文、速率和费用限制。思考深度支持自动、快速、均衡和深入：OpenAI 兼容接口传 `reasoning_effort`，DeepSeek 模型同时启用 `thinking`，Claude 原生使用 adaptive thinking 与 `output_config.effort`。模型不支持时会返回接口错误，可改回自动。聊天界面仅展示接口实际返回的 `reasoning_content`、Claude thinking block 或联网 Worker 的思考摘要；不推测或伪造未返回的思考过程。可选 Worker 也不再设置额外的输出上限。
+
 ## 发布到 GitHub Pages
 
 本项目的所有文件放在仓库根目录，保留相对路径。
