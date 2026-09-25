@@ -12,8 +12,31 @@
   let mode = ['guide','device','compatible','worker'].includes(provider.mode)?provider.mode:'guide';
   let accessToken = '';
   let providerKey = '';
-  let modelPipe = null;
+  let modelReady = false;
   let modelLoading = null;
+  let localWorker = null;
+  let requestId = 0;
+  const pending = new Map();
+  function callLocalModel(type, messages, onProgress) {
+    if (!localWorker) {
+      localWorker = new Worker('./model.worker.js?v=20260925c',{type:'module'});
+      localWorker.onmessage = ({data}) => {
+        const request=pending.get(data.id);if(!request)return;
+        if(data.type==='progress'){request.onProgress?.(data.percent);return}
+        clearTimeout(request.timer);pending.delete(data.id);
+        if(data.type==='error')request.reject(new Error(data.message));else request.resolve(data);
+      };
+      localWorker.onerror = () => {
+        for(const request of pending.values()){clearTimeout(request.timer);request.reject(new Error('后台模型加载失败'))}
+        pending.clear();localWorker?.terminate();localWorker=null;modelReady=false;
+      };
+    }
+    return new Promise((resolve,reject)=>{
+      const id=++requestId;
+      const timer=setTimeout(()=>{pending.delete(id);localWorker?.terminate();localWorker=null;modelReady=false;reject(new Error('模型运行超时，请切回本地引导或重试'))},type==='load'?240000:90000);
+      pending.set(id,{resolve,reject,onProgress,timer});localWorker.postMessage({id,type,messages});
+    });
+  }
   let busy = false;
   let context = {};
   const starters = [
@@ -29,8 +52,8 @@
     ['国家大学生就业服务平台','https://www.ncss.cn/','高校毕业生就业服务']
   ];
   function save() { try { localStorage.setItem(CHAT_KEY,JSON.stringify(messages.slice(-24))); } catch {} }
-  function modeLabel() { return ({guide:'本地引导 · 即刻可用',device:'浏览器小模型 · 零 API 费用',compatible:'兼容 API · 自带密钥',worker:'联网 AI · 独立接口'})[mode]; }
-  function currentPrivacy() { return mode==='guide'?'本地引导在此设备运行；不发送你的对话或简历。':mode==='device'?'模型文件首次从 Hugging Face 下载，推理在此设备运行；模型较小，中文建议请自行核对。':'使用在线接口时，对话发往所配置的服务；仅勾选后才附上求职资料。'; }
+  function modeLabel() { return ({guide:'本地引导 · 即刻可用',device:'浏览器小模型 · 英语试用',compatible:'兼容 API · 自带密钥',worker:'联网 AI · 独立接口'})[mode]; }
+  function currentPrivacy() { return mode==='guide'?'本地引导在此设备运行；不发送你的对话或简历。':mode==='device'?'模型在本机后台线程运行；中文提问会自动使用本地引导。下载模型需要流量。':'使用在线接口时，对话发往所配置的服务；仅勾选后才附上求职资料。'; }
   function setMode(value) { mode=value;provider.mode=value;localStorage.setItem(PROVIDER_KEY,JSON.stringify(provider));const label=$('#agent-mode-label');if(label)label.textContent=modeLabel();const privacy=$('#chat-privacy');if(privacy)privacy.textContent=currentPrivacy();document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('selected',b.dataset.mode===mode));document.querySelectorAll('[data-mode-panel]').forEach(p=>p.hidden=p.dataset.modePanel!==mode); }
   function view(data) { if(data)context=data;return `<div class="companion-page">
     <section class="companion-hero"><div><div class="eyebrow">YOUR CAREER COMPANION</div><h1>有问题，<em>一起想下一步。</em></h1><p>聊方向、梳理真实经历、准备面试，或者去可靠渠道寻找岗位。你掌握节奏。</p></div><div class="buddy-orbit" aria-hidden="true"><span class="buddy-core"><svg class="nav-icon"><use href="./icons.svg#sparkle"></use></svg></span><i></i><i></i></div></section>
@@ -38,7 +61,7 @@
     <aside class="companion-tools"><section class="tool-card"><div class="tool-kicker">01 / JOB SEARCH</div><h2>从真实岗位出发</h2><p>输入城市和岗位，带着这组关键词到招聘网站搜索、比对，再回这里记录进展。</p><form id="platform-search"><label class="field">目标岗位<input name="role" maxlength="60" placeholder="例如：产品运营" value="${escape(context.profile?.target||'')}"></label><label class="field">城市<input name="city" maxlength="40" placeholder="例如：成都 / 全国" value="${escape(context.profile?.city||'')}"></label><button class="btn btn-dark" type="submit">生成搜索清单 ↗</button></form><div id="search-results"></div></section>
     <section class="tool-card ai-settings"><div class="tool-kicker">02 / YOUR AI</div><h2>选择你的伙伴</h2><p>默认使用零费用的本地引导。设备允许时，也可下载轻量模型，或连接自己的 API。</p><div class="mode-picks"><button type="button" data-mode="guide">本地引导</button><button type="button" data-mode="device">浏览器模型</button><button type="button" data-mode="compatible">兼容 API</button><button type="button" data-mode="worker">联网接口</button></div>
     <div data-mode-panel="guide" class="mode-detail"><p>方向、简历、面试和岗位搜索都可以直接开始。回复由本地规则生成，不会冒充大模型。</p></div>
-    <div data-mode-panel="device" class="mode-detail"><p>使用 SmolLM2 135M 量化模型。首次需下载约 200 MB 模型文件，速度受设备影响；模型偏英语，中文求职建议质量有限。无需 API 费用。</p><button type="button" id="model-load" class="btn btn-ghost btn-sm">下载并加载模型</button><p class="subtle" id="model-status">加载后只在当前页面会话中使用；无需预先下载也可继续本地引导。</p></div>
+    <div data-mode-panel="device" class="mode-detail"><p>英语试用：SmolLM2 135M 量化模型。首次需下载约 200 MB，生成速度受设备影响。中文提问会自动使用本地引导；无需 API 费用。</p><button type="button" id="model-load" class="btn btn-ghost btn-sm">下载并加载模型</button><p class="subtle" id="model-status">加载后只在当前页面会话中使用；无需预先下载也可继续本地引导。</p></div>
     <div data-mode-panel="compatible" class="mode-detail"><form id="provider-form"><label class="field">兼容网关基础地址<input id="provider-base" type="url" inputmode="url" placeholder="https://example.com/v1" value="${escape(provider.base||'')}"></label><label class="field">API 密钥<input id="provider-key" type="password" autocomplete="off" placeholder="仅在本次页面会话中保留"></label><button type="button" id="fetch-models" class="btn btn-ghost btn-sm">读取模型列表</button><label class="field" style="margin-top:12px">选择或输入模型<input id="provider-model" list="provider-models" value="${escape(provider.model||'')}"><datalist id="provider-models"></datalist></label><label class="chat-opt"><input type="checkbox" id="share-context"> <span>发送求职方向和简历文字（不含联系方式）</span></label><button type="submit" class="btn btn-dark btn-sm">保存网关和模型</button><p class="subtle" id="provider-status">密钥只在内存中。只填写可信供应商。网关须允许浏览器跨域请求；收费和联网能力由供应商决定。</p></form></div>
     <div data-mode-panel="worker" class="mode-detail"><p>连接你部署的受保护接口。联网搜索仅在接口已开启并支持时可用。</p><form id="config-form"><label class="field">接口地址<input id="agent-endpoint" type="url" inputmode="url" placeholder="https://你的-worker.workers.dev/api/chat" value="${escape(endpoint)}"></label><label class="field">访问令牌<input id="agent-token" type="password" autocomplete="off" placeholder="只在当前页面会话中保留"></label><label class="chat-opt"><input type="checkbox" id="share-worker-context"> <span>发送求职方向和简历文字（不含联系方式）</span></label><div class="form-actions"><button class="btn btn-dark btn-sm" type="submit">保存接口</button><button class="btn btn-ghost btn-sm" type="button" id="config-remove">清除接口</button></div><p class="subtle">令牌刷新后需重新输入，请勿将模型 API Key 填在这里。</p></form></div></section></aside></div></div>`; }
   function renderMessages() {
@@ -83,11 +106,12 @@
         if(!response.ok)throw new Error(body.error?.message||`网关返回 ${response.status}`);
         const content=body.choices?.[0]?.message?.content;result={text:typeof content==='string'?content:Array.isArray(content)?content.filter(x=>x.type==='text').map(x=>x.text||'').join('\n'):'没有收到文字回复',sources:[]};
       } else if(mode==='device') {
-        if(!modelPipe)throw new Error('请先点击“下载并加载模型”。设备内存不足时可切回本地引导。');
-        const prompt=[{role:'system',content:'You are a concise career companion. Answer in Chinese. Never invent job listings or resume achievements. Give one concrete next step.'},...messages.slice(-5).map(m=>({role:m.role,content:m.text.slice(0,500)}))];
-        const generated=await modelPipe(prompt,{max_new_tokens:130,do_sample:false});
-        const output=generated?.[0]?.generated_text;
-        result={text:typeof output==='string'?output.slice(-1500):String(output?.at(-1)?.content||'模型没有生成回复'),sources:[]};
+        if(/[\u3400-\u9fff]/.test(text)) { result={text:'这个轻量模型的中文表达不稳定，下面是本地引导给你的建议：\n\n'+offlineReply(text),sources:[]}; } else {
+        if(!modelReady)throw new Error('请先点击“下载并加载模型”。设备内存不足时可切回本地引导。');
+        const prompt=[{role:'system',content:'You are a concise career companion. Answer in simple English. Never invent job listings or resume achievements. Give one concrete next step.'},...messages.filter(m=>!/[\u3400-\u9fff]/.test(m.text)).slice(-5).map(m=>({role:m.role,content:m.text.slice(0,500)}))];
+        const generated=await callLocalModel('generate',prompt);
+        result={text:generated.text,sources:[]};
+        }
       } else result={text:offlineReply(text),sources:[]};
       messages.push({role:'assistant',text:result.text.slice(0,3500),sources:result.sources.slice(0,6)}); save();
     } catch (error) { messages.push({role:'assistant',text:`这次没能生成回复：${error.message}\n\n你的问题仍保存在本机。请检查当前模式的设置，或切换到本地引导。`,sources:[]}); save(); }
@@ -102,7 +126,7 @@
     root.querySelector('#chat-clear')?.addEventListener('click',()=>{if(!confirm('清空伙伴的本地对话记录？'))return;messages=[];save();renderMessages()});
     root.querySelector('#platform-search')?.addEventListener('submit',e=>{e.preventDefault();const form=e.target;const d=new FormData(form);const query=[String(d.get('city')||'').trim(),String(d.get('role')||'').trim()].filter(Boolean).join(' ');const out=$('#search-results');if(!query){out.textContent='先填写岗位或城市。';return}out.innerHTML=`<div class="search-query"><strong>搜索词：${escape(query)}</strong><button type="button" id="copy-search" class="chat-text-button">复制</button></div><div class="platform-list">${platforms.map(([name,url,note])=>`<a href="${url}" target="_blank" rel="noopener noreferrer"><span><strong>${name}</strong><small>${note}</small></span><span aria-hidden="true">↗</span></a>`).join('')}</div><p class="subtle">打开原站后粘贴搜索词；岗位、薪资及发布日期以原站为准。</p>`;$('#copy-search').addEventListener('click',()=>navigator.clipboard?.writeText(query).then(()=>{$('#copy-search').textContent='已复制'}).catch(()=>{$('#copy-search').textContent='请手动复制'}));});
     root.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));setMode(mode);
-    root.querySelector('#model-load')?.addEventListener('click',async()=>{const status=$('#model-status');if(modelPipe){status.textContent='模型已加载，可以直接开始对话。';return}if(modelLoading)return;status.textContent='正在加载模型，请保持此页面打开…';modelLoading=(async()=>{const {pipeline}=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');modelPipe=await pipeline('text-generation','onnx-community/SmolLM2-135M-Instruct-ONNX-MHA',{dtype:'q4',device:'wasm',progress_callback:x=>{if(x.status==='progress'&&status)status.textContent=`下载模型：${Math.round(x.progress||0)}%`}})})();try{await modelLoading;status.textContent='模型已加载，可以直接开始对话。'}catch(error){status.textContent='加载失败：'+error.message+'。可切回本地引导。'}finally{modelLoading=null}});
+    root.querySelector('#model-load')?.addEventListener('click',async()=>{const status=$('#model-status');if(modelReady){status.textContent='模型已加载，可以直接开始对话。';return}if(modelLoading)return;status.textContent='正在后台加载模型，请保持此页面打开…';modelLoading=callLocalModel('load',null,p=>{if(status)status.textContent=`下载模型：${p}%`});try{await modelLoading;modelReady=true;status.textContent='模型已加载，可以直接开始对话。'}catch(error){status.textContent='加载失败：'+error.message+'。可切回本地引导。'}finally{modelLoading=null}});
     root.querySelector('#fetch-models')?.addEventListener('click',async()=>{const status=$('#provider-status');try{const base=validBase($('#provider-base').value);const key=$('#provider-key').value.trim()||providerKey;if(!key)throw Error('请先填写 API 密钥');status.textContent='正在读取模型列表…';const response=await fetch(base+'/models',{headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(15000)});const data=await response.json();if(!response.ok)throw Error(data.error?.message||`网关返回 ${response.status}`);const models=Array.isArray(data.data)?data.data.map(x=>x.id).filter(x=>typeof x==='string').slice(0,200):[];$('#provider-models').innerHTML=models.map(x=>`<option value="${escape(x)}"></option>`).join('');status.textContent=`读取到 ${models.length} 个模型。可选择或手动输入。`;if(models.length&&!$('#provider-model').value)$('#provider-model').value=models[0]}catch(error){status.textContent='读取失败：'+error.message+'。可手动输入模型名；若浏览器提示跨域限制，请使用允许 CORS 的网关。'}});
     root.querySelector('#provider-form')?.addEventListener('submit',e=>{e.preventDefault();try{provider.base=validBase($('#provider-base').value);provider.model=$('#provider-model').value.trim().slice(0,150);if(!provider.model)throw Error('请输入模型名');providerKey=$('#provider-key').value.trim()||providerKey;if(!providerKey)throw Error('请输入 API 密钥');localStorage.setItem(PROVIDER_KEY,JSON.stringify(provider));$('#provider-status').textContent='已保存网关和模型；密钥只在当前页面会话保留。'}catch(error){$('#provider-status').textContent=error.message}});
     root.querySelector('#config-form')?.addEventListener('submit',e=>{e.preventDefault();const raw=$('#agent-endpoint').value.trim();try{const url=new URL(raw);if(url.protocol!=='https:' && !(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('请使用 HTTPS 接口');endpoint=url.href;localStorage.setItem(CONFIG_KEY,endpoint);accessToken=$('#agent-token').value.trim();setMode('worker');}catch(error){alert(error.message)}});
