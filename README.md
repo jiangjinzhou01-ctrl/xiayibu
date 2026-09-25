@@ -33,15 +33,22 @@
 
 原生 HTML / CSS / JavaScript，无打包依赖。兼容现代桌面和移动浏览器。源码按需修改即可复用。
 
-## 求职伙伴与联网 AI
+## 求职伙伴、免费模式与兼容 API
 
-「求职伙伴」默认提供本地引导：方向拆解、简历经历结构、面试练习和搜索清单。对话保存在本机浏览器。搜索清单打开 BOSS 直聘、智联招聘、中国公共招聘网、国家大学生就业服务平台的官网，由用户在原站搜索和核实岗位；本地模式不抓取实时职位、不声称已联网。
+伙伴页现在有四种方式：
 
-可选的联网 AI 后端放在 [`worker/`](worker/)：Cloudflare Worker 代为调用 OpenAI Responses API，在需要搜索岗位或最新信息时开启 `web_search`，并将网页引用链接交给前端展示。GitHub Pages 只托管前端，无法保管付费模型密钥。**部署 Worker、准备 OpenAI API 额度、设置私密访问令牌是独立步骤；ChatGPT 订阅不能自动为此接口付费。** 不部署 Worker，网站的本地功能仍可用。
+1. **本地引导（默认）**：零配置、零 API 费用，按本地规则给出求职方向、简历结构、面试练习和搜索清单。它不是大语言模型。
+2. **浏览器小模型（可选）**：用户手动点击下载 Hugging Face 的 SmolLM2 135M 量化模型，用 Transformers.js 在浏览器中推理。首次下载约 200 MB，设备需有足够内存；模型偏英语，中文质量有限。模型文件可能被浏览器缓存，不保证离线长期可用。无需 API 费用，但会产生下载流量。
+3. **兼容 API**：输入自己供应商的 OpenAI 兼容网关基础地址（通常到 `/v1`）、密钥，点击读取 `GET /models`，选择模型，然后使用 `POST /chat/completions`。网关和模型名保存在本机，密钥仅在当前页面内存中。供应商必须支持浏览器跨域 CORS；不支持时无法从 GitHub Pages 直连，可改用自己的受保护中转接口。供应商可能收费，且兼容聊天不代表支持联网搜索。
+4. **联网接口**：可选部署 `worker/` 中的 Cloudflare Worker，使用 OpenAI Responses API 的网页搜索与来源引用。GitHub Pages 静态站点无法保管付费模型密钥。
 
-部署时在自己的 Cloudflare 账户中创建 Worker，使用 `worker/index.js` 与 `worker/wrangler.jsonc`，将以下值设置为 Worker 环境 secret（切勿提交到 GitHub）：
+搜索清单打开 BOSS 直聘、智联招聘、中国公共招聘网、国家大学生就业服务平台的官网，由用户在原站搜索和核实岗位；本地模式不抓取实时职位、不声称已联网。
+
+### 自己部署联网接口
+
+在自己的 Cloudflare 账户中创建 Worker，使用 `worker/index.js` 与 `worker/wrangler.jsonc`，将以下值设置为 Worker 环境 secret（切勿提交到 GitHub）：
 
 - `OPENAI_API_KEY`：自己的 OpenAI API 密钥。
 - `AGENT_ACCESS_TOKEN`：自行生成的高强度随机访问令牌，用来限制 API 费用暴露。
 
-`APP_ORIGIN` 必须与正式网页的 origin 完全一致。`OPENAI_MODEL` 可更换为账户可用的模型。部署后在网页「求职伙伴 → 配置 AI 接口」填写 Worker 的 `https://.../api/chat` 地址与访问令牌。访问令牌只保留在当前页面内存，刷新后须重新填写；接口地址保存在当前浏览器。对话发送到该 Worker；「发送求职方向与简历文字」默认不勾选，即使勾选也会省略姓名、电话、邮箱和简历城市字段。Worker 不要求公开招聘平台账号，不代替用户登录、抓取或投递。请在 OpenAI 项目中设置使用额度，并根据实际访问量增设限流或独立用户身份验证；浏览器的跨域限制不等于服务端认证。
+`APP_ORIGIN` 必须与正式网页的 origin 完全一致。`OPENAI_MODEL` 可更换为账户可用的模型。部署后在「求职伙伴 → 联网接口」填写 Worker 的 `https://.../api/chat` 地址与访问令牌。令牌刷新后须重新填写；对话发送到该 Worker，勾选授权后才附上方向与简历文字，明确的联系方式字段会省略。请在模型供应商处设置预算上限；浏览器的跨域限制不等于服务端认证。ChatGPT 订阅不能自动为 API 调用付费。
