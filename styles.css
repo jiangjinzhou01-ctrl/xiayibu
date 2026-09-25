@@ -256,13 +256,12 @@ button:active,.btn:active,.side-nav a:active,.mobile-nav a:active,.mobile-more s
   .journey-links a:hover{transform:translateX(2px)}
 }
 @media(max-width:880px){
-  body:has(main.companion-route){overflow:hidden}
-  body:has(main.companion-route) .workspace{height:100dvh;min-height:0;overflow:hidden;padding-bottom:calc(var(--mobile-nav-space) + env(safe-area-inset-bottom))}
-  main.companion-route{flex:1 1 auto;min-height:0;overflow:hidden}
-  .companion-page{height:100%;min-height:0}
-  body:has(#chat-input:focus) .workspace{height:var(--visual-height,100dvh);padding-bottom:0}
-  body:has(#chat-input:focus) .companion-page{height:100%}
+  body:has(main.companion-route) .topbar{position:sticky;top:0;z-index:20}
+  .companion-page{height:calc(100dvh - 54px - var(--mobile-nav-space) - env(safe-area-inset-bottom));min-height:0}
+  .companion-page .chat-thread{overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+  body:has(#chat-input:focus) .companion-page{height:calc(var(--visual-height,100dvh) - 54px)}
 }
+.chat-thread>.chat-row{flex:0 0 auto}
 @media(max-width:880px) and (prefers-reduced-motion:no-preference){
   .companion-panel:not([hidden]),.modal,.companion-page .companion-tools.is-open{animation:sheet-enter .23s var(--motion-curve) both}
 }
