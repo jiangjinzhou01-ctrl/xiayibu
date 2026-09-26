@@ -75,7 +75,7 @@ export function Opportunities({ state: s, change, detail, notify, askWith }: Pro
   };
   const visible = s.opportunities.filter(o => group(o) === filter);
   return <>
-    <Header eyebrow="OPPORTUNITIES · 真实机会" title="机会与申请" sub="把原站看到的岗位带回来，做判断、准备、记录真实进展。" action={<button class="button primary" onClick={() => openEdit()}><Icon name="plus" size={17}/> 记录机会</button>} />
+    <Header eyebrow="机会与进展" title="机会与申请" sub="保存岗位原文、核对条件，再记录投递与面试的每一步。" action={<button class="button primary" onClick={() => openEdit()}><Icon name="plus" size={17}/> 记录机会</button>} />
     <div class="opportunities-layout">
       <div class="opportunities-list">
         <div class="segmented" role="group" aria-label="筛选机会">{['待判断', '进行中', '已结束'].map(f => <button class={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>{f} <span>{s.opportunities.filter(o => group(o) === f).length}</span></button>)}</div>
@@ -88,7 +88,7 @@ export function Opportunities({ state: s, change, detail, notify, askWith }: Pro
         </div></Card>
       </div>
       <div class="opportunity-detail">
-        {selected ? <><Card className="detail-head">
+        {selected ? <><a class="opportunity-back" href="#opportunities"><Icon name="chevron" size={17}/> 返回机会列表</a><Card className="detail-head">
           <div class="detail-meta"><span class="eyebrow">保存于 {selected.capturedAt}</span><span class="status">{selected.status}</span></div>
           <h2>{selected.role || '待补充岗位'}</h2><p>{selected.company || '公司待填写'} · {selected.source || '来源待填写'}</p>
           <div class="button-row">{sourceUrl(selected.url) && <a class="button outline" href={sourceUrl(selected.url)} target="_blank" rel="noopener noreferrer">打开原始岗位 <Icon name="external" size={16}/></a>}<button class="button subtle" onClick={() => openEdit(selected)}>编辑资料</button><button class="button subtle" onClick={() => askWith(selected.id)}>问伙伴</button></div>

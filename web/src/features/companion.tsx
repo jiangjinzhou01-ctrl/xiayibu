@@ -44,7 +44,7 @@ export function Companion({ state: s, change, detail, notify }: Props) {
   };
   return <div class="companion-screen">
     <div class="companion-overview">
-      <div class="companion-heading"><div><span class="eyebrow">AI COMPANION · 求职同行</span><h1>一起看清下一步</h1><p>当前阶段：{stageFor(s)} · {s.provider.mode === 'guide' ? '本地规则引导，免费' : s.provider.mode === 'compatible' ? '你的兼容 API' : s.provider.mode === 'worker' ? '独立联网接口' : '浏览器小模型（实验）'}</p></div><button class="icon-button ask-top" aria-label="在顶部开始提问" title="提问" onClick={() => composer.current?.focus({ preventScroll: true })}><Icon name="edit"/></button></div>
+      <div class="companion-heading"><div><span class="eyebrow">你的求职伙伴</span><h1>一起看清下一步</h1><p>{stageFor(s)} · {s.provider.mode === 'guide' ? '免费本地引导' : s.provider.mode === 'compatible' ? '你的兼容 API' : s.provider.mode === 'worker' ? '独立联网接口' : '浏览器模型实验'}</p></div><button class="icon-button ask-top" aria-label="在顶部开始提问" title="提问" onClick={() => composer.current?.focus({ preventScroll: true })}><Icon name="edit"/></button></div>
       <div class="companion-context">
         <div><small>我了解的状态</small><strong>{s.profile.target || '方向尚未确定'} · {s.opportunities.length} 份已保存机会</strong></div>
         <button class="quiet-link" onClick={() => setShowContext(!showContext)} aria-expanded={showContext}>查看上下文 <Icon name="chevron" size={15}/></button>

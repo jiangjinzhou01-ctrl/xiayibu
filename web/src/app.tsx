@@ -75,11 +75,13 @@ export function App() {
   return <div class="shell">
     <aside class="sidebar">
       <a href="#today" class="brand"><Mark size={38}/><span><strong>见程</strong><small>把下一步走清楚</small></span></a>
+      <div class="sidebar-section-label">工作空间</div>
       <nav class="side-links" aria-label="主导航">{nav()}</nav>
-      <div class="sidebar-foot"><span>你的求职进程</span><strong>仅存于此设备</strong></div>
+      <div class="sidebar-note"><span class="sidebar-note-icon"><Icon name="bookmark" size={17}/></span><div><strong>你的进程，由你掌握</strong><span>记录仅保存在这台设备</span></div></div>
+      <div class="sidebar-foot">见程 · 求职行动工作台</div>
     </aside>
     <div class="workspace">
-      <header class="topbar"><a class="mobile-brand" href="#today"><Mark size={29}/><strong>见程</strong></a><div class="topbar-title"><span>见程 / </span>{labels[route.page]}</div><div class="topbar-right"><span class="local-badge">本机保存</span><a href="#profile" class="icon-button" aria-label="我的资料"><Icon name="profile" size={19}/></a></div></header>
+      <header class="topbar"><a class="mobile-brand" href="#today"><Mark size={28}/><strong>见程</strong></a><div class="topbar-title"><span>工作空间</span><Icon name="chevron" size={14}/><strong>{labels[route.page]}</strong></div><div class="topbar-right"><span class="local-badge"><span class="local-badge-dot"/>本机保存</span><a href="#profile" class="icon-button topbar-profile" aria-label="我的资料"><Icon name="profile" size={19}/></a></div></header>
       <main id="content">
         <section hidden={route.page !== 'today'} class="page today-page"><Today state={state} change={change} openOnboarding={() => setOnboarding(true)}/></section>
         <section hidden={route.page !== 'opportunities'} class="page opportunities-page"><Opportunities state={state} change={change} detail={route.page === 'opportunities' ? route.detail : ''} notify={notify} askWith={key => { location.hash = 'companion/' + key; }}/></section>

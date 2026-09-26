@@ -24,7 +24,7 @@ export function Mark({ size = 36 }: { size?: number }) {
 export function Header({ eyebrow, title, sub, action }: { eyebrow?: string; title: string; sub?: string; action?: ComponentChildren }) {
   return <div class="page-head"><div>{eyebrow && <span class="eyebrow">{eyebrow}</span>}<h1>{title}</h1>{sub && <p>{sub}</p>}</div>{action && <div class="page-head-action">{action}</div>}</div>;
 }
-export function Card({ children, className = '' }: { children: ComponentChildren; className?: string }) { return <section class={'card ' + className}>{children}</section>; }
+export function Card({ children, className = '', id }: { children: ComponentChildren; className?: string; id?: string }) { return <section id={id} class={'card ' + className}>{children}</section>; }
 export function Empty({ title, body, action }: { title: string; body: string; action?: ComponentChildren }) {
   return <div class="empty"><div class="empty-dot" aria-hidden="true"/><strong>{title}</strong><p>{body}</p>{action}</div>;
 }
