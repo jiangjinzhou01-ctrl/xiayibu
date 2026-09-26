@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { discover, hasApiKey, setApiKey, setWorkerToken, validBase } from '../ai';
+import { clearApiKey, clearWorkerToken, discover, getApiKey, getWorkerToken, hasApiKey, setApiKey, setWorkerToken, validBase } from '../ai';
 import { AppState, Evidence, Profile as ProfileData, Resume, Stage, defaultState, id, now, today, stageFor } from '../domain';
 import { backup, migrateLegacy, parseBackup } from '../storage';
 import { deviceReady, loadDevice } from '../device';
@@ -24,9 +24,8 @@ export function Profile({ state: s, change, notify }: Props) {
   const [resumeDraft, setResumeDraft] = useState<Resume | null>(null);
   const [memoryText, setMemoryText] = useState('');
   const [review, setReview] = useState({ observed: '', adjustment: '' });
-  const [apiInput, setApiInput] = useState('');
-  const [tokenInput, setTokenInput] = useState('');
-  const [models, setModels] = useState<string[]>([]);
+  const [apiInput, setApiInput] = useState(() => getApiKey(s.provider));
+  const [tokenInput, setTokenInput] = useState(() => getWorkerToken(s.provider.workerEndpoint));
   const [providerMessage, setProviderMessage] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
   const [deviceMessage, setDeviceMessage] = useState('');
@@ -34,12 +33,16 @@ export function Profile({ state: s, change, notify }: Props) {
   const selected = s.resumes.find(r => r.id === resumeId) || s.resumes[0];
   const editProfile = (k: keyof ProfileData, value: string | boolean) => setProfileDraft({ ...profileDraft, [k]: value });
   const updateProvider = (key: keyof AppState['provider'], value: string | number | boolean) => change(st => { (st.provider as unknown as Record<string, unknown>)[key] = value; });
+  const switchGateway = (base: string, format = s.provider.format) => {
+    const next = { ...s.provider, base, format };
+    change(st => { Object.assign(st.provider, { base, format, resolvedBase: '', model: '', availableModels: [], modelUrl: '' }); });
+    setApiInput(getApiKey(next)); setProviderMessage('');
+  };
   const probe = async () => {
     try {
       setLoadingModels(true); setProviderMessage('正在检测同一网关域名的模型列表…');
       const result = await discover(s.provider.base, s.provider.format, apiInput);
-      setModels(result.models);
-      setApiKey(apiInput); updateProvider('resolvedBase', result.base);
+      change(st => { st.provider.resolvedBase = result.base; st.provider.availableModels = result.models; });
       setProviderMessage(`已找到 ${result.models.length} 个模型；接口地址：${result.base}`);
     } catch (e) { setProviderMessage(e instanceof Error ? e.message : '检测失败'); }
     finally { setLoadingModels(false); }
@@ -105,20 +108,21 @@ export function Profile({ state: s, change, notify }: Props) {
           {s.provider.mode === 'guide' && <p class="hint">零配置、零 API 费用。使用本地规则和模板，不是大语言模型，也不搜索实时岗位。</p>}
           {s.provider.mode === 'compatible' && <div class="form-stack">
             <p class="hint">供应商可能收费。会把本次问题发送给你填写的网关；只有勾选后才附上档案。浏览器跨域权限由网关决定。</p>
-            <label class="field">接口格式<select value={s.provider.format} onChange={e => { updateProvider('format',e.currentTarget.value); setModels([]); }}><option value="openai">OpenAI 兼容</option><option value="anthropic">Claude 原生</option></select></label>
-            <label class="field">商家提供的网关<input type="url" value={s.provider.base} onInput={e => { updateProvider('base',e.currentTarget.value.slice(0, 1000)); updateProvider('resolvedBase',''); }} placeholder="https://example.com"/></label>
-            <label class="field">API 密钥（仅此页面内存）<input type="password" value={apiInput} onInput={e => { setApiInput(e.currentTarget.value); setApiKey(e.currentTarget.value); }} placeholder={hasApiKey() ? '本次会话已有密钥' : '粘贴密钥，不进入备份或仓库'}/></label>
+            <label class="field">接口格式<select value={s.provider.format} onChange={e => switchGateway(s.provider.base,e.currentTarget.value as AppState['provider']['format'])}><option value="openai">OpenAI 兼容</option><option value="anthropic">Claude 原生</option></select></label>
+            <label class="field">商家提供的网关<input type="url" value={s.provider.base} onInput={e => switchGateway(e.currentTarget.value.slice(0, 1000))} placeholder="https://example.com"/></label>
+            <label class="field">API 密钥（保存在此设备）<input type="password" autoComplete="off" value={apiInput} onInput={e => { const value = e.currentTarget.value; setApiInput(value); if (s.provider.base) setApiKey(value,s.provider); }} placeholder="先填网关，再粘贴密钥"/></label>
+            <div class="credential-note"><span>密钥仅存于当前浏览器，按网关分别保存；不会写入备份或源码。共用设备请及时移除。</span><button type="button" class="inline-action" disabled={!apiInput && !hasApiKey(s.provider)} onClick={() => { clearApiKey(s.provider); setApiInput(''); notify('已移除此网关在本机保存的密钥'); }}>移除密钥</button></div>
             <button class="button outline" disabled={loadingModels} onClick={probe}>{loadingModels ? '检测中…' : '检测网关并获取模型'}</button>
-            {models.length > 0 && <label class="field">从检测结果选择<select value={s.provider.model} onChange={e => updateProvider('model',e.currentTarget.value)}><option value="">请选择</option>{models.map(m => <option value={m}>{m}</option>)}</select></label>}
+            {!!s.provider.availableModels?.length && <label class="field">从检测结果选择<select value={s.provider.model} onChange={e => updateProvider('model',e.currentTarget.value)}><option value="">请选择</option>{s.provider.availableModels.map(m => <option value={m}>{m}</option>)}</select></label>}
             <label class="field">或手动填写模型名<input value={s.provider.model} onInput={e => updateProvider('model',e.currentTarget.value.slice(0,150))} placeholder="以商家提供的模型 ID 为准"/></label>
-            <details class="advanced"><summary>高级选项</summary><label class="field">实际 API 基址（检测失败时可手填）<input value={s.provider.resolvedBase} onInput={e => updateProvider('resolvedBase',e.currentTarget.value)} placeholder="例如 https://example.com/v1"/></label><label class="field">思考深度<select value={s.provider.effort} onChange={e => updateProvider('effort',e.currentTarget.value)}><option value="auto">自动（默认）</option><option value="low">快速</option><option value="medium">均衡</option><option value="high">深入</option></select></label><label class="field">输出长度<select value={s.provider.outputMode} onChange={e => updateProvider('outputMode',e.currentTarget.value)}><option value="auto">自动（不额外限制）</option><option value="manual">手动</option></select></label>{s.provider.outputMode === 'manual' && <label class="field">单次上限 Token<input type="number" min="256" max="131072" value={s.provider.maxTokens} onInput={e => updateProvider('maxTokens',Number(e.currentTarget.value))}/></label>}</details>
+            <details class="advanced"><summary>高级选项</summary><label class="field">模型介绍页面（可选）<input type="url" value={s.provider.modelUrl || ''} onInput={e => updateProvider('modelUrl',e.currentTarget.value.slice(0,1000))} placeholder="供应商提供的此模型页面 URL"/></label><p class="hint">填写后，伙伴页的模型名称会指向这里；未填写时打开供应商站点。</p><label class="field">实际 API 基址（检测失败时可手填）<input value={s.provider.resolvedBase} onInput={e => updateProvider('resolvedBase',e.currentTarget.value)} placeholder="例如 https://example.com/v1"/></label><label class="field">思考深度<select value={s.provider.effort} onChange={e => updateProvider('effort',e.currentTarget.value)}><option value="auto">自动（默认）</option><option value="low">快速</option><option value="medium">均衡</option><option value="high">深入</option></select></label><label class="field">输出长度<select value={s.provider.outputMode} onChange={e => updateProvider('outputMode',e.currentTarget.value)}><option value="auto">自动（不额外限制）</option><option value="manual">手动</option></select></label>{s.provider.outputMode === 'manual' && <label class="field">单次上限 Token<input type="number" min="256" max="131072" value={s.provider.maxTokens} onInput={e => updateProvider('maxTokens',Number(e.currentTarget.value))}/></label>}</details>
             {!!providerMessage && <p class="hint" role="status">{providerMessage}</p>}
-            <button class="button primary" onClick={() => { try { validBase(s.provider.base); if (!s.provider.model || !hasApiKey()) throw Error('请填写模型名和密钥'); if (s.provider.resolvedBase && new URL(s.provider.resolvedBase).origin !== new URL(validBase(s.provider.base)).origin) throw Error('API 基址必须与所填网关同域名'); notify('模型配置已就绪；密钥关闭网页后需要重新填写'); } catch(e) { notify(e instanceof Error ? e.message : '配置错误'); } }}>保存并连接</button>
+            <button class="button primary" onClick={() => { try { validBase(s.provider.base); if (!s.provider.model || !hasApiKey(s.provider)) throw Error('请填写模型名和密钥'); if (s.provider.resolvedBase && new URL(s.provider.resolvedBase).origin !== new URL(validBase(s.provider.base)).origin) throw Error('API 基址必须与所填网关同域名'); if (s.provider.modelUrl && !/^https:\/\/[^\s]+$/i.test(s.provider.modelUrl)) throw Error('模型介绍页面需要 HTTPS 地址'); notify(`已选择 ${s.provider.model}；密钥保存在此设备`); } catch(e) { notify(e instanceof Error ? e.message : '配置错误'); } }}>保存并连接</button>
           </div>}
-          {s.provider.mode === 'worker' && <div class="form-stack"><p class="hint">需要自行部署有访问控制和预算限制的联网 Worker。联网搜索仅在你开启后随请求执行，结果需在原站核对。</p><label class="field">接口地址<input value={s.provider.workerEndpoint} onInput={e => updateProvider('workerEndpoint',e.currentTarget.value.slice(0,1000))} placeholder="https://…/api/chat"/></label><label class="field">访问令牌（仅此页面内存）<input type="password" value={tokenInput} onInput={e => { setTokenInput(e.currentTarget.value); setWorkerToken(e.currentTarget.value); }} placeholder="服务端访问令牌"/></label><label class="checkline"><input type="checkbox" checked={s.provider.webSearch} onChange={e => updateProvider('webSearch', e.currentTarget.checked)}/>本次允许联网搜索</label></div>}
+          {s.provider.mode === 'worker' && <div class="form-stack"><p class="hint">需要自行部署有访问控制和预算限制的联网 Worker。联网搜索仅在你开启后随请求执行，结果需在原站核对。</p><label class="field">接口地址<input value={s.provider.workerEndpoint} onInput={e => { const endpoint = e.currentTarget.value.slice(0,1000); updateProvider('workerEndpoint',endpoint); setTokenInput(getWorkerToken(endpoint)); }} placeholder="https://…/api/chat"/></label><label class="field">访问令牌（保存在此设备）<input type="password" autoComplete="off" value={tokenInput} onInput={e => { const value = e.currentTarget.value; setTokenInput(value); setWorkerToken(value,s.provider.workerEndpoint); }} placeholder="先填接口地址，再填写访问令牌"/></label><div class="credential-note"><span>访问令牌不会进入备份。共用设备请及时移除。</span><button type="button" class="inline-action" disabled={!tokenInput} onClick={() => { clearWorkerToken(s.provider.workerEndpoint); setTokenInput(''); notify('已移除此接口在本机保存的访问令牌'); }}>移除令牌</button></div><label class="checkline"><input type="checkbox" checked={s.provider.webSearch} onChange={e => updateProvider('webSearch', e.currentTarget.checked)}/>本次允许联网搜索</label></div>}
           {s.provider.mode === 'device' && <div class="form-stack"><p class="hint">实验功能：SmolLM2 135M 英语模型，首次下载约 200 MB。设备内存不足时可能无法运行；中文问题会回退到本地规则。</p><button class="button outline" disabled={loadingModels} onClick={async () => { try { setLoadingModels(true); setDeviceMessage('准备下载…'); await loadDevice(n => setDeviceMessage(`正在下载模型：${n}%`)); setDeviceMessage('模型已加载，可以用英语提问'); } catch(e) { setDeviceMessage(e instanceof Error ? e.message : '加载失败'); } finally { setLoadingModels(false); } }}>{deviceReady() ? '已加载' : '下载并加载模型'}</button>{deviceMessage && <p class="hint" role="status">{deviceMessage}</p>}</div>}
         </Card>
-        <Card id="profile-data"><div class="section-title"><h2>数据与备份</h2><span>本机保存</span></div><p class="hint">更换设备或清除浏览器数据前，请导出备份。密钥永不包含在备份中。</p><div class="button-row"><button class="button outline" onClick={() => saveFile(`见程-完整备份-${today()}.json`,backup(s))}>导出完整备份</button><label class="button subtle upload">导入 JSON<input ref={setImportFile} type="file" accept=".json,application/json" onChange={e => importData(e.currentTarget.files?.[0])}/></label></div>
+        <Card id="profile-data"><div class="section-title"><h2>数据与备份</h2><span>本机保存</span></div><p class="hint">更换设备或清除浏览器数据前，请导出备份。密钥与访问令牌单独保存在此设备，不会包含在备份中。</p><div class="button-row"><button class="button outline" onClick={() => saveFile(`见程-完整备份-${today()}.json`,backup(s))}>导出完整备份</button><label class="button subtle upload">导入 JSON<input ref={setImportFile} type="file" accept=".json,application/json" onChange={e => importData(e.currentTarget.files?.[0])}/></label></div>
           {!!s.legacySnapshot && <details class="advanced"><summary>旧版数据保护</summary><p class="hint">旧版原始记录仍在浏览器中。迁移后暂不删除，可导出原始快照或将本应用恢复为旧版数据映射。</p><div class="button-row"><button class="button subtle" onClick={() => saveFile(`职向-迁移前原始快照-${today()}.json`,JSON.stringify(s.legacySnapshot,null,2))}>下载原始快照</button><button class="button subtle" onClick={() => { if (!confirm('把见程数据恢复到旧版导入时的状态？请先导出当前备份。')) return; const snap = s.legacySnapshot as Record<string, unknown>; const restored = migrateLegacy(snap.data,snap.chats,snap.memory,snap.provider,snap.endpoint); change(st => Object.assign(st,restored)); notify('已恢复迁移前的记录'); }}>恢复迁移时的记录</button></div></details>}
           <details class="advanced danger-zone"><summary>清除本机资料</summary><p class="hint">包括见程中的简历、申请记录和记忆。此操作不会撤销已在外部招聘平台提交的申请。</p><button class="button danger" onClick={() => { if (!confirm('确定清除见程记录？建议先下载备份。')) return; change(st => Object.assign(st,defaultState())); notify('本机见程记录已清除'); }}>清除见程数据</button></details>
         </Card>

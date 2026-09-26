@@ -19,15 +19,18 @@ export interface Action { id: string; title: string; done: boolean; createdAt: s
 export interface Evidence { id: string; situation: string; action: string; outcome: string; source: string; createdAt: string; }
 export interface Resume { id: string; title: string; createdAt: string; opportunityId?: string; name: string; phone: string; email: string; city: string; summary: string; experience: string; projects: string; education: string; skills: string; }
 export interface Memory { id: string; text: string; createdAt: string; includeOnline: boolean; }
-export interface Chat { id: string; role: 'user' | 'assistant'; text: string; at: string; opportunityId?: string; reasoning?: string; sources?: { title: string; url: string }[]; error?: boolean; }
+export interface Chat { id: string; conversationId?: string; role: 'user' | 'assistant'; text: string; at: string; opportunityId?: string; reasoning?: string; sources?: { title: string; url: string }[]; error?: boolean; }
+export interface Conversation { id: string; title: string; createdAt: string; updatedAt: string; opportunityId?: string; }
 export interface ProviderSettings {
   mode: Mode; format: Format; base: string; resolvedBase: string; model: string;
+  availableModels?: string[]; modelUrl?: string;
   outputMode: 'auto' | 'manual'; maxTokens: number; effort: 'auto' | 'low' | 'medium' | 'high';
-  workerEndpoint: string; webSearch: boolean;
+  workerEndpoint: string; webSearch: boolean; includeProfileOnline?: boolean;
 }
 export interface AppState {
   version: 2; profile: Profile; opportunities: Opportunity[]; actions: Action[];
   evidence: Evidence[]; resumes: Resume[]; memories: Memory[]; chats: Chat[];
+  conversations: Conversation[]; activeConversationId: string | null;
   reviews: { id: string; at: string; observed: string; adjustment: string }[];
   provider: ProviderSettings; legacySnapshot?: unknown;
 }
@@ -39,8 +42,8 @@ export const statuses: JobStatus[] = ['已收藏', '待判断', '准备中', '�
 export const defaultState = (): AppState => ({
   version: 2,
   profile: { status: '', target: '', city: '', strengths: '', goal: '', constraints: '', stage: '探索方向', stageConfirmed: false, onboarded: false },
-  opportunities: [], actions: [], evidence: [], resumes: [], memories: [], chats: [], reviews: [],
-  provider: { mode: 'guide', format: 'openai', base: '', resolvedBase: '', model: '', outputMode: 'auto', maxTokens: 2048, effort: 'auto', workerEndpoint: '', webSearch: false },
+  opportunities: [], actions: [], evidence: [], resumes: [], memories: [], chats: [], conversations: [], activeConversationId: null, reviews: [],
+  provider: { mode: 'guide', format: 'openai', base: '', resolvedBase: '', model: '', availableModels: [], modelUrl: '', outputMode: 'auto', maxTokens: 2048, effort: 'auto', workerEndpoint: '', webSearch: false, includeProfileOnline: false },
 });
 export function stageFor(state: AppState): Stage {
   const p = state.profile;

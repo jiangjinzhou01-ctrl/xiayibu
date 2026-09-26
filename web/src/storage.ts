@@ -36,6 +36,22 @@ const status = (v: unknown): JobStatus => ({
   '面试中': '面试中', '已收到反馈': '待回复', '已结束': '用户撤回',
 } as Record<string, JobStatus>)[str(v)] || '已收藏';
 
+function restoreConversations(state: AppState): AppState {
+  const s = { ...defaultState(), ...state, provider: { ...defaultState().provider, ...state.provider } };
+  s.conversations = Array.isArray(state.conversations) ? state.conversations : [];
+  s.chats = Array.isArray(state.chats) ? state.chats : [];
+  const orphaned = s.chats.filter(chat => !chat.conversationId || !s.conversations.some(c => c.id === chat.conversationId));
+  if (orphaned.length) {
+    const first = orphaned.find(chat => chat.role === 'user');
+    const conversation = { id: id(), title: first?.text.trim().slice(0, 42) || '之前的对话', createdAt: orphaned[0].at || now(), updatedAt: orphaned.at(-1)?.at || now() };
+    s.conversations.push(conversation);
+    s.chats = s.chats.map(chat => orphaned.includes(chat) ? { ...chat, conversationId: conversation.id } : chat);
+    if (!state.activeConversationId) s.activeConversationId = conversation.id;
+  }
+  if (s.activeConversationId && !s.conversations.some(c => c.id === s.activeConversationId)) s.activeConversationId = s.conversations[0]?.id || null;
+  return s;
+}
+
 export function migrateLegacy(data: unknown, chatData?: unknown, memoryData?: unknown, providerData?: unknown, endpointData?: unknown): AppState {
   const s = defaultState(), old = obj(data), p = obj(old.profile), r = obj(old.resume);
   s.profile = { ...s.profile, status: str(p.status, 40), target: str(p.target, 80), city: str(p.city, 80), strengths: str(p.strengths), goal: str(p.goal), onboarded: Object.values(p).some(Boolean) || (Array.isArray(old.jobs) && old.jobs.length > 0) };
@@ -67,12 +83,12 @@ export function migrateLegacy(data: unknown, chatData?: unknown, memoryData?: un
   const pr = obj(providerData), connections = obj(pr.connections), format = pr.protocol === 'anthropic' ? 'anthropic' : 'openai', connection = obj(connections[format]);
   s.provider = { ...s.provider, mode: ['compatible', 'worker', 'device'].includes(str(pr.mode)) ? pr.mode as AppState['provider']['mode'] : 'guide', format, base: str(connection.inputBase || connection.base || pr.base, 1000), resolvedBase: str(connection.base, 1000), model: str(connection.model || pr.model, 150), effort: ['low', 'medium', 'high'].includes(str(connection.effort)) ? connection.effort as AppState['provider']['effort'] : 'auto', outputMode: connection.outputMode === 'manual' ? 'manual' : 'auto', maxTokens: Number(connection.maxTokens) || 2048, workerEndpoint: str(endpointData, 1000) };
   s.legacySnapshot = { data: old, chats: chatData, memory: memoryData, provider: providerData, endpoint: endpointData };
-  return s;
+  return restoreConversations(s);
 }
 export async function loadState(): Promise<AppState> {
   const fallbackSaved = parsed(fallback);
-  if (fallbackSaved?.version === 2) return fallbackSaved;
-  try { const saved = await get(); if (saved?.version === 2) return { ...defaultState(), ...saved, reviews: Array.isArray(saved.reviews) ? saved.reviews : [] }; } catch {}
+  if (fallbackSaved?.version === 2) return restoreConversations(fallbackSaved);
+  try { const saved = await get(); if (saved?.version === 2) return restoreConversations(saved); } catch {}
   const old = parsed('xiayibu-v1');
   const s = old ? migrateLegacy(old, parsed('xiayibu-companion-v1'), read('xiayibu-companion-memory-v1'), parsed('xiayibu-provider-v1'), read('xiayibu-agent-endpoint-v1')) : defaultState();
   // The old localStorage keys remain untouched for rollback. The raw snapshot is
@@ -91,13 +107,13 @@ export function saveState(state: AppState): Promise<void> {
 }
 export function parseBackup(text: string): AppState {
   const data = JSON.parse(text);
-  if (data?.version === 2 && Array.isArray(data.opportunities) && Array.isArray(data.actions) && Array.isArray(data.chats)) return { ...defaultState(), ...data, reviews: Array.isArray(data.reviews) ? data.reviews : [], provider: { ...defaultState().provider, ...data.provider } };
+  if (data?.version === 2 && Array.isArray(data.opportunities) && Array.isArray(data.actions) && Array.isArray(data.chats)) return restoreConversations(data);
   if (data?.data && typeof data.data === 'object') return migrateLegacy(data.data, null, data.companionMemory);
   if (data?.profile && Array.isArray(data.jobs)) return migrateLegacy(data);
   throw Error('无法识别此备份；请选择见程或旧版职向的 JSON 文件');
 }
 export function backup(s: AppState): string {
   const clean = structuredClone(s);
-  // API credentials live only in the current page memory, never in backups.
+  // Device credentials are stored under a separate key, never in backups.
   return JSON.stringify({ ...clean, exportedAt: now() }, null, 2);
 }

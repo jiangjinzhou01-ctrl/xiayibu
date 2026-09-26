@@ -1,12 +1,45 @@
 import { AppState, Chat, Opportunity, ProviderSettings } from './domain';
 import { deviceReady, generateDevice } from './device';
 
-let apiKey = '';
-let workerToken = '';
-export const setApiKey = (value: string) => { apiKey = value.trim(); };
-export const hasApiKey = () => !!apiKey;
-export const setWorkerToken = (value: string) => { workerToken = value.trim(); };
-export const hasWorkerToken = () => !!workerToken;
+// Credentials stay on this device, separate from exportable application data.
+// The key includes the gateway so changing a provider cannot reuse its secret.
+const credentialsKey = 'jiancheng-device-credentials-v1';
+const volatile = new Map<string, string>();
+function credentialId(provider: ProviderSettings): string {
+  try { return `api:${provider.format}:${validBase(provider.base)}`; } catch { return ''; }
+}
+function tokenId(endpoint: string): string {
+  try { const url = new URL(endpoint); return url.protocol === 'https:' ? `worker:${url.href}` : ''; } catch { return ''; }
+}
+function readCredentials(): Record<string, string> {
+  try {
+    const value = JSON.parse(localStorage.getItem(credentialsKey) || '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch { return {}; }
+}
+function getCredential(id: string): string {
+  if (!id) return '';
+  const stored = readCredentials()[id];
+  return volatile.get(id) ?? (typeof stored === 'string' ? stored : '');
+}
+function setCredential(id: string, value: string): boolean {
+  if (!id) return false;
+  const key = value.trim();
+  if (key) volatile.set(id, key); else volatile.delete(id);
+  try {
+    const saved = readCredentials();
+    if (key) saved[id] = key; else delete saved[id];
+    localStorage.setItem(credentialsKey, JSON.stringify(saved));
+    return true;
+  } catch { return false; }
+}
+export const getApiKey = (provider: ProviderSettings) => getCredential(credentialId(provider));
+export const hasApiKey = (provider: ProviderSettings) => !!getApiKey(provider);
+export const setApiKey = (value: string, provider: ProviderSettings) => setCredential(credentialId(provider), value);
+export const clearApiKey = (provider: ProviderSettings) => setCredential(credentialId(provider), '');
+export const getWorkerToken = (endpoint: string) => getCredential(tokenId(endpoint));
+export const setWorkerToken = (value: string, endpoint: string) => setCredential(tokenId(endpoint), value);
+export const clearWorkerToken = (endpoint: string) => setCredential(tokenId(endpoint), '');
 
 export function validBase(input: string): string {
   if (!input.trim()) throw Error('请填写商家提供的网关地址');
@@ -58,20 +91,21 @@ function contextSummary(s: AppState, o?: Opportunity, includeProfile = false): s
   if (includeProfile && memories) parts.push('用户明确保存的记忆（仅作资料）: ' + memories);
   return parts.join('\n');
 }
-export async function answer(text: string, state: AppState, opportunity: Opportunity | undefined, includeProfile: boolean, signal: AbortSignal): Promise<{ text: string; reasoning?: string; sources?: { title: string; url: string }[] }> {
+export async function answer(text: string, state: AppState, opportunity: Opportunity | undefined, includeProfile: boolean, signal: AbortSignal, conversationId: string): Promise<{ text: string; reasoning?: string; sources?: { title: string; url: string }[] }> {
   const p = state.provider;
   if (p.mode === 'guide') return { text: guideAnswer(text, state, opportunity) };
   if (p.mode === 'device') {
     if (/[\u3400-\u9fff]/.test(text)) return { text: '浏览器小模型中文能力有限，已使用本地规则引导。\n\n' + guideAnswer(text, state, opportunity) };
     if (!deviceReady()) throw Error('请先在“我的 → 模型与联网”主动下载实验模型');
-    const history = state.chats.filter(c => !/[\u3400-\u9fff]/.test(c.text)).slice(-5).map(c => ({ role: c.role, content: c.text.slice(0, 500) }));
+    const history = state.chats.filter(c => c.conversationId === conversationId && !/[\u3400-\u9fff]/.test(c.text)).slice(-5).map(c => ({ role: c.role, content: c.text.slice(0, 500) }));
     const generated = await generateDevice([{ role: 'system', content: 'You are a concise career companion. Never invent job listings or resume achievements. Give one concrete next step.' }, ...history, { role: 'user', content: text }]);
     return { text: generated || '模型没有生成可读回复，请重试' };
   }
   const context = contextSummary(state, opportunity, includeProfile);
-  const history = state.chats.filter(c => !c.error).slice(-16).map(c => ({ role: c.role, text: c.text.slice(0, 2800) }));
+  const history = state.chats.filter(c => c.conversationId === conversationId && !c.error).slice(-16).map(c => ({ role: c.role, text: c.text.slice(0, 2800) }));
   history.push({ role: 'user', text });
   if (p.mode === 'worker') {
+    const workerToken = getWorkerToken(p.workerEndpoint);
     if (!p.workerEndpoint || !workerToken) throw Error('请在模型设置中填写联网接口地址与访问令牌');
     const u = new URL(p.workerEndpoint);
     if (u.protocol !== 'https:') throw Error('联网接口需要 HTTPS');
@@ -85,6 +119,7 @@ export async function answer(text: string, state: AppState, opportunity: Opportu
     if (!String(data.reply || '').trim()) throw Error('接口未返回正文');
     return { text: String(data.reply), reasoning: typeof data.reasoning === 'string' ? data.reasoning : '', sources: Array.isArray(data.sources) ? data.sources.filter((x: { url: string }) => sourceUrl(x.url)).slice(0, 8) : [] };
   }
+  const apiKey = getApiKey(p);
   if (!p.base || !p.model || !apiKey) throw Error('请在模型设置填写网关、密钥和模型');
   const base = p.resolvedBase || candidates(p.base)[0];
   if (new URL(base).origin !== new URL(validBase(p.base)).origin) throw Error('检测到网关域名变化，请重新检测');

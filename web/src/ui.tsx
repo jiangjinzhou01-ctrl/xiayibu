@@ -2,7 +2,7 @@ import { ComponentChildren } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 
 export type Page = 'today' | 'opportunities' | 'companion' | 'profile';
-export function Icon({ name, size = 21 }: { name: 'today' | 'opportunities' | 'companion' | 'profile' | 'plus' | 'chevron' | 'close' | 'send' | 'check' | 'edit' | 'calendar' | 'bookmark' | 'settings' | 'external'; size?: number }) {
+export function Icon({ name, size = 21 }: { name: 'today' | 'opportunities' | 'companion' | 'profile' | 'plus' | 'chevron' | 'close' | 'send' | 'check' | 'edit' | 'calendar' | 'bookmark' | 'settings' | 'external' | 'history'; size?: number }) {
   const paths: Record<string, ComponentChildren> = {
     today: <><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9 20v-6h6v6"/></>,
     opportunities: <><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M8 5V3m8 2V3M3.5 10h17m-12 4h3m-3 3h5"/></>,
@@ -15,6 +15,7 @@ export function Icon({ name, size = 21 }: { name: 'today' | 'opportunities' | 'c
     bookmark: <path d="M5 4h14v17l-7-4-7 4V4Z"/>,
     settings: <><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.2 2.2m9.8 9.8 2.2 2.2m0-14.2-2.2 2.2m-9.8 9.8-2.2 2.2"/></>,
     external: <><path d="M13 4h7v7m0-7-9 9"/><path d="M18 15v5H4V6h5"/></>,
+    history: <><path d="M4 6h16M4 12h16M4 18h11"/><path d="m17 17 3 2-3 2"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
